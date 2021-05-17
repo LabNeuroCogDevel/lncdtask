@@ -2,29 +2,45 @@
 # -*- py-which-shell: "ipython"; -*-
 # -*- elpy-use-ipython: "ipython"; -*-
 # python -m doctest -v mgs_task.py
-"""Main module."""
+"""
+LNCDTask: a wrapper around psychopy for "draw, flip, wait" tasks
+
+If timing is fixed, `set_onsets()` and `run()` can push most of the burden of task programming onto a onset_df
+dataframe
+"""
 
 from participant import Participant
 from screen import wait_until, create_window, take_screenshot, msg_screen, replace_img, wait_for_scanner
 from externalcom import Arrington, Eyelink, MuteWinSound, ParallelPortEEG, AllExternal, ExternalCom
-from psychopy import visual
+from psychopy import visual, core
 
 class EventRunner():
     """
     store function and arguments to use when an event is called
     """
-    def __init__(self, func, args_cols):
+    def __init__(self, func, args_cols, event_name=None):
         """store function and columns"""
         self.func = func
         self.args_cols = args_cols
+        if event_name is None:
+            event_name = self.func.__name__
+        self.event_name = event_name
 
-    def run(event_row):
+    def run(self, event_row):
         """
         event_row pandas row. hopefully with columns matching args_cols
         """
         event_info = event_row.to_dict()
-        event_info = {event_info.get(x) for x in self.arg_cols}
-        self.func(**event_info)
+        # could quickly use generator. but want to throw a warning when value is missing
+        #event_vals = [event_info.get(x) for x in self.args_cols]
+
+        event_vals = [None]*len(self.args_cols)
+        for i, key in enumerate(self.args_cols):
+            event_vals[i] = event_info.get(key)
+            if event_vals[i] is None:
+                print(f"WARNING! no value for column '{key}' when running event function '{self.event_name}'")
+
+        return(self.func(*event_vals))
 
 
 class LNCDTask():
@@ -39,7 +55,7 @@ class LNCDTask():
     """
     def __init__(self, onset_df=None, win=None, externals=[], participant=None):
         if win is None:
-            win = create_window()
+            win = create_window(True)
         self.win = win
         
         # could have just one and change the color
@@ -49,6 +65,8 @@ class LNCDTask():
                                        color='yellow', bold=True)
         self.cue_fix = visual.TextStim(win, text='+', name='cue_fixation',
                                        color='royalblue', bold=True)
+        self.msgbox = visual.TextStim(win, text='', name='message_box',
+                                       color='white', bold=True)
 
         # images
         self.img = visual.ImageStim(win, name="imgdot", interpolate=True)
@@ -63,14 +81,36 @@ class LNCDTask():
         self.participant = participant
 
         # to be set
-        self.events = [{}]      # dictionary of event=>EventRunners
-        self.resutls = [{}]
+        self.events = {}      # dictionary of event=>EventRunners
+        self.resutls = [{}]   # list of dict per event
         if onset_df is not None:
-            self.add_onsets(onset_df)
+            self.set_onsets(onset_df)
+            
+        self.DEBUG = False
             
         
 
-    def add_onsets(self, onset_df):
+    def mark_external(self, *kargs):
+        """ print flip and send to external sources """
+        msg=" ".join([str(x) for x in kargs])
+        self.externals.event(msg)
+
+
+    def flip_at(self, onset, *kargs, mark_func=None):
+       """wait and then flip.
+       send event notification to external sources with mark_func (def to mark_external)
+       returns dictionary with 'flip' time"""
+       if mark_func is None:
+           mark_func = self.mark_external
+       if len(kargs) > 0:
+           self.win.callOnFlip(mark_func, *kargs)
+       # timing
+       wait_until(onset)
+       flip = self.win.flip()
+       return({'flip': flip})
+
+
+    def set_onsets(self, onset_df):
         """
         add onsets dataframe for fixed timing using run
 
@@ -96,38 +136,43 @@ class LNCDTask():
         """
         self.events[name] = EventRunner(func, arg_cols)
     
-    def run(self):
+    def run(self, start_at=None):
         """
         run through onset_df, running events when we have them
         """
         if self.onset_df is None:
-            raise Exception("no timing exsits. use add_onsets()")
+            raise Exception("no timing exsits. use set_onsets()")
+        if start_at is None:
+            start_at = core.getTime()
+
+        self.onset_df['onset0'] = self.onset_df.onset
+        self.onset_df['onset'] = self.onset_df.onset + start_at
+
         for (i, row) in self.onset_df.iterrows():
-            event = self.events.get(row['event_name'], None)
+            event_name = row['event_name']
+            event = self.events.get(event_name, None)
+            if self.DEBUG:
+                print(row)
             if event is None:
-                print(f"WARNING: unknown event '{event}'. add it with add_event_type()!")
+                print(f"WARNING: event {i} unknown event '{event_name}'. add it with add_event_type()!")
                 continue
 
-            self.results[i] = self.events[event].run(x)
+            self.results[i] = event.run(row)
+
+        return(self.results)
 
       
-    # --- here as examples
+    # --- Examples
     def iti(self, onset=0, code='iti'):
         self.iti_fix.draw()
-        self.win.callOnFlip(self.externals.event, code)
-        showtime = self.win.flip()
-        return({'flip': showtime})
+        return(self.flip_at(onset, code))
 
     def isi(self, onset=0, code='isi'):
         self.isi_fix.draw()
-        self.win.callOnFlip(self.externals.event, code)
-        showtime = self.win.flip()
-        return({'flip': showtime})
+        return(self.flip_at(onset, code))
 
     def add_default_events(self):
         self.events['isi'] = EventRunner(self.isi, ['onset'])
         self.events['iti'] = EventRunner(self.iti, ['onset'])
-
-
-
-    
+        #self.add_event_type('iti',self.iti)
+        #self.add_event_type('isi',self.isi)

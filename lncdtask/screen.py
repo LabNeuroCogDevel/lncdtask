@@ -34,13 +34,13 @@ def center_textbox(textbox):
     textbox.pos = (-tw/ww, 0)
 
 
-def wait_for_scanner(textbox, trigger, msg='Waiting for scanner (pulse trigger)'):
+def wait_for_scanner(textbox, trigger=['equal'], msg='Waiting for scanner (pulse trigger)'):
     """
     wait for scanner trigger press
     start any auxilary things (eyetracking for mri, ttl for eeg)
     return time of keypush
     """
-    textbox.setText(msg % trigger)
+    textbox.setText(msg)
     center_textbox(textbox)
     textbox.draw()
     textbox.win.flip()
