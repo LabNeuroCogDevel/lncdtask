@@ -1,10 +1,10 @@
-from lncdtask import LNCDTask, create_window, replace_img
+from lncdtask import LNCDTask, create_window, replace_img, wait_for_scanner
 from psychopy import misc, visual
 import numpy as np
 import pandas as pd
 from math import floor, ceil
 import os
-from psychopy.gui import DlgFromDict
+import psychopy
 
 
 def eppos2relpos(x, orig_width=800):
@@ -55,6 +55,13 @@ class DollarReward(LNCDTask):
         self.dotsize_edge = .15 # part of hack to get circle size
         self.make_ring()
         self.trialnum = 0
+        
+        self.ringpng = {
+            'neu': visual.ImageStim(self.win, name="ringnue", interpolate=True, image='images/dollarRing.png'),
+            'rew': visual.ImageStim(self.win, name="ringrew", interpolate=True, image='images/neutralRing.png')
+        }
+
+        self.instructionpng = visual.ImageStim(self.win, name="instruct", interpolate=True, image='images/instructions.png')
 
         # events
         self.add_event_type('ring', self.ring, ['onset','ring_type','position'])
@@ -66,7 +73,8 @@ class DollarReward(LNCDTask):
     def ring(self, onset, ring_type, position=None):
         """ display ring: reward or neutral """
         self.trialnum = self.trialnum + 1
-        self.ringimg[ring_type].draw()
+        #self.ringimg[ring_type].draw()
+        self.ringpng[ring_type].draw()
         self.cue_fix.color = 'white'
         self.cue_fix.draw()
         return(self.flip_at(onset, self.trialnum, 'ring', 'rew', position))
@@ -87,6 +95,13 @@ class DollarReward(LNCDTask):
         self.crcl.draw()
         return(self.flip_at(onset, self.trialnum, 'dot', ring_type, position))
 
+    def get_ready(self, triggers=['equal']):
+        "flip the instruction png, wait for the scanner trigger"
+        self.instructionpng.draw()
+        self.win.flip()
+        psychopy.event.waitKeys(keyList=triggers)
+        
+
     # -- helpers
 
     def ttl(self):
@@ -99,6 +114,7 @@ class DollarReward(LNCDTask):
 
     def make_ring(self, text_size=45):
         """ create the ring
+        20210518 - use images instead to match eprime experiment
         makes self.ringimg['rew'] and self.ringimg['neu']
         see
         https://discourse.psychopy.org/t/the-best-way-to-draw-many-text-objects-rsvp/2758
@@ -137,7 +153,7 @@ class DollarReward(LNCDTask):
                 elementMask=None,
                 elementTex=buff.image)
     
-    def read_timing(self,run_num, fname="../dollar_reward_events.txt", n_start_iti=3, tr=1.5):
+    def read_timing(self,run_num, fname="dollar_reward_events.txt", n_start_iti=3, tr=1.5):
         """
         read in timing extracted from eprime1 .es file
         """
@@ -150,7 +166,7 @@ class DollarReward(LNCDTask):
         ep_df = ep_df[ep_df.run==run_num].reset_index()
         start_fix = pd.DataFrame({'event_name':['iti']*n_start_iti})
         onset_df = pd.concat([start_fix, ep_df])
-        onset_df['onset'] = [x*tr for x in range(len(onset_df))]
+        onset_df['onset'] = [(x-1)*tr for x in range(len(onset_df))]
         return onset_df
 
 
@@ -237,7 +253,8 @@ if __name__ == "__main__":
     n_runs=4
     eyetracker = None
     participant = None
-    run_info = RunDialog(extra_dict={'EyeTracking': ['None','Arrnington'], 'fullscreen': False, 'truncated': True},
+    run_info = RunDialog(extra_dict={'EyeTracking': ['None','Arrnington'],
+                                     'fullscreen': False, 'truncated': True},
                              order=['run_num','subjid', 'timepoint', 'EyeTracking', 'fullscreen'])
     
     # open a dialog and then a psychopy window for each run
@@ -262,7 +279,7 @@ if __name__ == "__main__":
         if len(sys.argv)>1:
             tfile = sys.argv[1]
         else:
-            tfile="../dollar_reward_events.txt"
+            tfile="dollar_reward_events.txt"
         onset_df = dr.read_timing(run_num, fname=tfile)
 
         if run_info.info['truncated']:
@@ -281,8 +298,9 @@ if __name__ == "__main__":
         # timing more important to eyetracker than log file
         logger.new(participant.log_path(run_id))
         dr.externals.append(logger)
-
+        
         # RUN
+        dr.get_ready()
         dr.run(end_wait=1.5)
         dr.onset_df.to_csv(participant.run_path(f"onsets_{run_num:02d}"))
         dr.msg(f"Finished run {run_num}/{n_runs}!")
