@@ -91,7 +91,8 @@ class LNCDTask():
         self.DEBUG = False
 
     def gobal_quit_key(self, key='escape'):
-        psychopy.event.globalKeys.add(key=key, func=self.mark_and_quit, name='shutdown')
+        if not psychopy.event.globalKeys.get(key):
+            psychopy.event.globalKeys.add(key=key, func=self.mark_and_quit, name='shutdown')
 
     def mark_and_quit(self):
         self.mark_external("FORCE QUIT")
