@@ -9,9 +9,10 @@ If timing is fixed, `set_onsets()` and `run()` can push most of the burden of ta
 dataframe
 """
 
-from participant import Participant
+from participant import Participant, vdate_str
+from rundialog import RunDialog
 from screen import wait_until, create_window, take_screenshot, msg_screen, replace_img, wait_for_scanner
-from externalcom import Arrington, Eyelink, MuteWinSound, ParallelPortEEG, AllExternal, ExternalCom
+from externalcom import Arrington, Eyelink, MuteWinSound, ParallelPortEEG, AllExternal, ExternalCom, FileLogger
 from psychopy import visual, core
 
 class EventRunner():
