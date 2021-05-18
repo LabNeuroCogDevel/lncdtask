@@ -166,7 +166,7 @@ class DollarReward(LNCDTask):
         ep_df = ep_df[ep_df.run==run_num].reset_index()
         start_fix = pd.DataFrame({'event_name':['iti']*n_start_iti})
         onset_df = pd.concat([start_fix, ep_df])
-        onset_df['onset'] = [(x-1)*tr for x in range(len(onset_df))]
+        onset_df['onset'] = [x*tr for x in range(len(onset_df))]
         return onset_df
 
 
@@ -225,7 +225,7 @@ class DollarReward(LNCDTask):
        from psychopy import core
        from lncdtask import wait_until
        t = core.getTime()
-       self.DEBUG = True
+       #self.DEBUG = True
 
        self.ring(t, 'rew', .75)
        self.prep(t+1, 'rew', .75)
@@ -272,7 +272,7 @@ if __name__ == "__main__":
         win = create_window(run_info.info['fullscreen'])
         dr = DollarReward(win=win, externals=[printer])
         dr.gobal_quit_key() # escape quits
-        #dr.DEBUG= True
+        dr.DEBUG= True
 
         # allow timing file to be provided on command line
         import sys
@@ -283,7 +283,7 @@ if __name__ == "__main__":
         onset_df = dr.read_timing(run_num, fname=tfile)
 
         if run_info.info['truncated']:
-            onset_df = onset_df[1:5]
+            onset_df = onset_df[0:5]
 
         dr.set_onsets(onset_df)
         dr.trialnum = 0
