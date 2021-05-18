@@ -13,6 +13,7 @@ from participant import Participant, vdate_str
 from rundialog import RunDialog
 from screen import wait_until, create_window, take_screenshot, msg_screen, replace_img, wait_for_scanner
 from externalcom import Arrington, Eyelink, MuteWinSound, ParallelPortEEG, AllExternal, ExternalCom, FileLogger
+import psychopy
 from psychopy import visual, core
 
 class EventRunner():
@@ -89,6 +90,13 @@ class LNCDTask():
             
         self.DEBUG = False
 
+    def gobal_quit_key(self, key='escape'):
+        psychopy.event.globalKeys.add(key=key, func=self.mark_and_quit, name='shutdown')
+
+    def mark_and_quit(self):
+        self.mark_external("FORCE QUIT")
+        core.quit()
+
     def mark_external(self, *kargs):
         """ print flip and send to external sources """
         msg=" ".join([str(x) for x in kargs])
@@ -155,14 +163,14 @@ class LNCDTask():
 
         for (i, row) in self.onset_df.iterrows():
             event_name = row['event_name']
-            event = self.events.get(event_name, None)
+            ev = self.events.get(event_name, None)
             if self.DEBUG:
                 print(row)
-            if event is None:
+            if ev is None:
                 print(f"WARNING: event {i} unknown event '{event_name}'. add it with add_event_type()!")
                 continue
 
-            self.results[i] = event.run(row)
+            self.results[i] = ev.run(row)
 
 
         # based on onsets. dont have durations. might need to wait at the end

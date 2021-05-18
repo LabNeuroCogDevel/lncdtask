@@ -254,10 +254,20 @@ if __name__ == "__main__":
 
         win = create_window(run_info.info['fullscreen'])
         dr = DollarReward(win=win, externals=[printer])
+        dr.gobal_quit_key() # escape quits
         #dr.DEBUG= True
-        onset_df = dr.read_timing(run_num)
+
+        # allow timing file to be provided on command line
+        import sys
+        if len(sys.argv)>1:
+            tfile = sys.argv[1]
+        else:
+            tfile="../dollar_reward_events.txt"
+        onset_df = dr.read_timing(run_num, fname=tfile)
+
         if run_info.info['truncated']:
             onset_df = onset_df[1:5]
+
         dr.set_onsets(onset_df)
         dr.trialnum = 0
 
