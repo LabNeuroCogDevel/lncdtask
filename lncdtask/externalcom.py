@@ -1,4 +1,5 @@
 import os.path
+from time import time
 
 class ExternalCom():
     def __init__(self, lookup=None):
@@ -23,6 +24,24 @@ class ExternalCom():
 
     def stop(self):
         print("external: stop")
+        
+class FileLogger(ExternalCom):
+    def __init__(self, lookup=None):
+        pass
+    def write(self, msg):
+        self.fh.write(f"{time():.5f} {msg}\n")
+    def new(self, fname):
+        self.fh = open(fname, 'a+')
+    def event(self, code=None):
+        self.write(code)
+    def start(self):
+        self.write("starting task")
+    def stop(self):
+        self.write("stopping task")
+        self.fh.close()
+
+        
+
 
 class Arrington(ExternalCom):
     """ Arrington eyetracking software. connected via ethernet. 
