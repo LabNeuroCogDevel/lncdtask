@@ -87,13 +87,14 @@ class LNCDTask():
             self.set_onsets(onset_df)
             
         self.DEBUG = False
-            
-        
 
     def mark_external(self, *kargs):
         """ print flip and send to external sources """
         msg=" ".join([str(x) for x in kargs])
         self.externals.event(msg)
+        
+    def msg(self, message):
+        msg_screen(self.msgbox, message)
 
 
     def flip_at(self, onset, *kargs, mark_func=None):
@@ -136,7 +137,7 @@ class LNCDTask():
         """
         self.events[name] = EventRunner(func, arg_cols)
     
-    def run(self, start_at=None):
+    def run(self, start_at=None, end_wait=0):
         """
         run through onset_df, running events when we have them
         """
@@ -147,6 +148,9 @@ class LNCDTask():
 
         self.onset_df['onset0'] = self.onset_df.onset
         self.onset_df['onset'] = self.onset_df.onset + start_at
+        
+        # tell everyone we are starting
+        self.externals.start()
 
         for (i, row) in self.onset_df.iterrows():
             event_name = row['event_name']
@@ -159,6 +163,11 @@ class LNCDTask():
 
             self.results[i] = event.run(row)
 
+
+        # based on onsets. dont have durations. might need to wait at the end
+        if end_wait:
+            core.wait(end_wait)
+        self.externals.stop()
         return(self.results)
 
       

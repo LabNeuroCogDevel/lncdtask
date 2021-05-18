@@ -1,3 +1,5 @@
+import os.path
+
 class ExternalCom():
     def __init__(self, lookup=None):
         self.lookup = lookup
@@ -34,12 +36,12 @@ class Arrington(ExternalCom):
         self.verbose=verbose
         self.recVideo=recVideo
         from ctypes import cdll, CDLL
-        if not os.path.exists(self.vpxDll):
-            Exception('cannot find eyetracking dll @ ' + self.vpxDll)
-        cdll.LoadLibrary(self.vpxDll)
-        self.vpx = CDLL(self.vpxDll)
+        if not os.path.exists(vpxDll):
+            raise Exception('cannot find eyetracking dll @ ' + vpxDll)
+        cdll.LoadLibrary(vpxDll)
+        self.vpx = CDLL(vpxDll)
         if self.vpx.VPX_GetStatus(1) < 1:
-            Exception('ViewPoint is not running!')
+            raise Exception('ViewPoint is not running!')
         self.vpx.VPX_SendCommand('say "python is connected"')
 
     def event(self, code=None):
@@ -171,9 +173,12 @@ class MuteWinSound(ExternalCom):
     
 
 class AllExternal(ExternalCom):
-    """ugly copy paste. better than usuing string accessors?"""
+    """ugly copy paste. better than using string accessors?"""
     def __init__(self, externals=[]):
         self.externals=externals
+
+    def append(self, extern):
+        self.externals.append(extern)
 
     def start(self):
         for ext in self.externals:

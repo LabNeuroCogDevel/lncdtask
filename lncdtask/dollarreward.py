@@ -1,7 +1,23 @@
-from lncdtask import LNCDTask, create_window, wait_until, replace_img
+from lncdtask import LNCDTask, create_window, wait_until, replace_img, msg_screen
 from psychopy import misc, visual
 import numpy as np
 import pandas as pd
+from math import floor, ceil
+import os
+from psychopy.gui import DlgFromDict
+
+
+def eppos2relpos(x, orig_width=800):
+    """convert from old eprime value 0-600 to -1 to 1
+    >>> eppos2relpos(0)
+    -1
+    >>> eppos2relpos(400)
+    0
+    >>> eppos2relpos(800)
+    1
+    """
+    half_width=orig_width/2
+    return (x-half_width)/half_width
 
 class DollarReward(LNCDTask):
     """
@@ -14,7 +30,7 @@ class DollarReward(LNCDTask):
       6       Reward catch2  (RewardCue 1.5s)
     Fixation cross during PrepCue and SaccadeCue is red, otherwise fixation cross is white.
 
-    From original:
+    From original across 4 runs:
      counts TrialType
      57     1
      55     2
@@ -29,8 +45,8 @@ class DollarReward(LNCDTask):
         >> win = create_window(False)
         >> onset_df= pd.DataFrame({'onset':[0], 'event_name':['ring']})
         >> printer = lncdtask.ExternalCom()
-        >> y = DollarReward(win=win, onset_df=onset_df, externals=[printer])
-        >> y.ring(0, 'rew')
+        >> dr = DollarReward(win=win, onset_df=onset_df, externals=[printer])
+        >> dr.ring(0, 'rew')
         """
         super().__init__(*karg, **kargs)
 
@@ -38,6 +54,7 @@ class DollarReward(LNCDTask):
         self.ringimg = {}
         self.dotsize_edge = .15 # part of hack to get circle size
         self.make_ring()
+        self.trialnum = 0
 
         # events
         self.add_event_type('ring', self.ring, ['onset','ring_type','position'])
@@ -48,16 +65,17 @@ class DollarReward(LNCDTask):
     # -- drawing functions
     def ring(self, onset, ring_type, position=None):
         """ display ring: reward or neutral """
+        self.trialnum = self.trialnum + 1
         self.ringimg[ring_type].draw()
         self.cue_fix.color = 'white'
         self.cue_fix.draw()
-        return(self.flip_at(onset,'ring', 'rew', position))
+        return(self.flip_at(onset, self.trialnum, 'ring', 'rew', position))
 
     def prep(self, onset, ring_type=None, position=None):
         """cue before onset"""
         self.cue_fix.color = 'red'
         self.cue_fix.draw()
-        return(self.flip_at(onset,'cue', ring_type, position))
+        return(self.flip_at(onset, self.trialnum, 'cue', ring_type, position))
 
     def dot(self, onset, ring_type=None, position=0):
         """position dot on horz axis to cue anti saccade
@@ -67,7 +85,7 @@ class DollarReward(LNCDTask):
         imgpos = replace_img(self.img, None, position, self.dotsize_edge)
         self.crcl.pos = imgpos
         self.crcl.draw()
-        return(self.flip_at(onset,'dot', ring_type, position))
+        return(self.flip_at(onset, self.trialnum, 'dot', ring_type, position))
 
     # -- helpers
 
@@ -118,39 +136,128 @@ class DollarReward(LNCDTask):
                 # colors=cues[k]['color'],
                 elementMask=None,
                 elementTex=buff.image)
+    
+    def read_timing(self,run_num, fname="../dollar_reward_events.txt", n_start_iti=3, tr=1.5):
+        """
+        read in timing extracted from eprime1 .es file
+        """
+        if not os.path.exists(fname):
+            raise Exception(f"cannot find eprime timing file! '{fname}'")
+        print(fname)
+        ep_df = pd.read_csv(fname,sep="\t", header=None)
+        ep_df.columns=["run","epevent","position600", "ring_type","event_name"]
+        ep_df['position'] = eppos2relpos(ep_df.position600)
+        ep_df = ep_df[ep_df.run==run_num].reset_index()
+        start_fix = pd.DataFrame({'event_name':['iti']*n_start_iti})
+        onset_df = pd.concat([start_fix, ep_df])
+        onset_df['onset'] = [x*tr for x in range(len(onset_df))]
+        return onset_df
 
-    def generate_timing(n=15, dur=1.5, n_catch=3):
+
+    def generate_timing(n=40, dur=1.5, n_catch1=6, n_catch2=6):
         """
         generate timing with catches for rew and neutral
+        not implemented, unfinished
         """
-        events=['ring','prep','sac','iti']
-        rew   =['rew','neu']
+        from lncdtask import shuf_for_ntrials
+        n_catch = n_catch1 + n_catch2 # 12
+        n_full = n - n_catch          # 28
+        rew_type    = ['rew','neu']
+
+        positions = [-1,-.66,-.33,.33,.66,1]
+
+        # full trials. balence left/rigth and rew/neu
+        partition_size = floor(n_full/4) # TODO: warn if not even?
+        trial_list = []
+        for side in ['left','right']:
+            for rew in rew_type:
+                pos_opts = positions[0:3] if side == "left" else positions[3:]
+                pos_vec = shuf_for_ntrials(pos_opts, partition_size)
+                df = pd.DataFrame({'ring_type':rew, 'side': side, 'pos': pos_vec, 'trial_type':'full', 'dur': tr*3})
+                trial_list.append(df)
+
+        # catch trials
+        for ctype in ['catch1','catch2']:
+            n_thiscatch = n_catch1 if ctype=="catch1" else n_catch2
+            partition_size = n_thiscatch/2 # 3 for each reward type
+            dur = tr if ctype=="catch1" else tr*2
+            for rew in rew_type:
+                df = pd.DataFrame({'ring_type':rew, 'side': side, 'pos': pos_vec, 'trial_type': ctype})
+                trial_list.append(np.repeat(df.valuse,partition_size,axis=0))
+        
+        # break into events
+        # TODO: random extra fixations
+        events = { 'full': ['ring','prep','sac'],
+                   'catch1': ['ring','prep'],
+                   'catch2': ['ring']}
+        event_list = []
+        for i, row in pd.concat(trial_list).iterrows():
+            evs = events[row['trial_type']]
+            event_dict = row.to_dict()
+            event_dict.update({'event_names': evs + ['fix']})
+            print(event_dict)
+            df = pd.DataFrame(event_dict)
+            df['dur'] = tr
+            event_list.append(df)
+        
+        onset_df = pd.concat(event_list)
+        onset_df['onset'] = np.cumsum(onset_df.dur)
+
 
 
 if __name__ == "__main__":
     from lncdtask import ExternalCom
     from psychopy import core
-    win = create_window(False)
     printer = ExternalCom()
-    dr = DollarReward(win=win, externals=[printer])
 
-    # exercise functions
-    t = core.getTime()
-    dr.ring(t, 'rew', .75)
-    dr.prep(t+1, 'rew', .75)
-    dr.dot(t+2, 'rew', .75)
-    wait_until(t+3)
+    # # exercise functions
+    # t = core.getTime()
+    # dr.ring(t, 'rew', .75)
+    # dr.prep(t+1, 'rew', .75)
+    # dr.dot(t+2, 'rew', .75)
+    # wait_until(t+3)
     
 
-    # run with hard coded timing
-    onset_df= pd.DataFrame({
-      'onset'     :[     0,      1,     2,     3,     5  ],
-      'event_name':['ring', 'prep', 'dot', 'iti', 'ring' ],
-      'ring_type': ['neu',  'neu',  'neu', 'neu',  'rew' ],
-      'position':  [.75,      .75,    .75,   .75,      1 ]
-    })
-    dr.set_onsets(onset_df)
+    # # run with hard coded timing
+    # onset_df= pd.DataFrame({
+    #   'onset'     :[     0,      1,     2,     3,     5  ],
+    #   'event_name':['ring', 'prep', 'dot', 'iti', 'ring' ],
+    #   'ring_type': ['neu',  'neu',  'neu', 'neu',  'rew' ],
+    #   'position':  [.75,      .75,    .75,   .75,      1 ]
+    # })
+    # dr.set_onsets(onset_df)
+    
 
-    t = core.getTime()
-    dr.run(start_at=t)
-    dr.win.close()
+    n_runs=4
+    run_info = {'run_num': 1, 'subjid': 'SUBJID', 'timepoint': 1, 'arrington': True, 'fullscreen': False}
+    eyetracker = None
+    
+    while run_info['run_num'] <= n_runs:
+        dlg = DlgFromDict(run_info, order=['run_num','subjid', 'timepoint', 'arrington', 'fullscreen'])
+        if not dlg.OK:
+            break
+
+        run_num=run_info['run_num']
+
+        win = create_window(run_info['fullscreen'])
+        dr = DollarReward(win=win, externals=[printer])
+        #dr.DEBUG= True
+        onset_df = dr.read_timing(run_num)[1:5]
+        dr.set_onsets(onset_df)
+        dr.trialnum = 0
+
+        if run_info['arrington'] and eyetracker is None:
+            eyetracker = Arrington()
+            dr.externals.append(eyetracker)
+
+        if eyetracker:
+            eyetracker.new(f"sub-{run_info['subjid']}_ses-{run_info['timepoint']}_run-{run_info['run_num']}")
+
+
+        t = core.getTime()
+        dr.run(start_at=t, end_wait=1.5)
+        dr.msg(f"Finished run {run_num}/{n_runs}!")
+        dr.win.close()
+
+        run_info['run_num'] = run_info['run_num'] + 1
+
