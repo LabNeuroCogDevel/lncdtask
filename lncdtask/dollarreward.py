@@ -1,4 +1,4 @@
-from lncdtask import LNCDTask, create_window, wait_until, replace_img, msg_screen
+from lncdtask import LNCDTask, create_window, replace_img
 from psychopy import misc, visual
 import numpy as np
 import pandas as pd
@@ -203,61 +203,79 @@ class DollarReward(LNCDTask):
         onset_df = pd.concat(event_list)
         onset_df['onset'] = np.cumsum(onset_df.dur)
 
+    def excersise(self):
+       # exercise functions
+
+       from psychopy import core
+       from lncdtask import wait_until
+       t = core.getTime()
+       self.DEBUG = True
+
+       self.ring(t, 'rew', .75)
+       self.prep(t+1, 'rew', .75)
+       self.dot(t+2, 'rew', .75)
+       wait_until(t+3)
+       
+
+       # run with hard coded timing
+       onset_df= pd.DataFrame({
+         'onset'     :[     0,      1,     2,     3,     5  ],
+         'event_name':['ring', 'prep', 'dot', 'iti', 'ring' ],
+         'ring_type': ['neu',  'neu',  'neu', 'neu',  'rew' ],
+         'position':  [.75,      .75,    .75,   .75,      1 ]
+       })
+       self.set_onsets(onset_df)
+       self.run(t+3)
 
 
 if __name__ == "__main__":
-    from lncdtask import ExternalCom
-    from psychopy import core
+    from lncdtask import ExternalCom, FileLogger, Participant, RunDialog
+    from time import time
     printer = ExternalCom()
-
-    # # exercise functions
-    # t = core.getTime()
-    # dr.ring(t, 'rew', .75)
-    # dr.prep(t+1, 'rew', .75)
-    # dr.dot(t+2, 'rew', .75)
-    # wait_until(t+3)
-    
-
-    # # run with hard coded timing
-    # onset_df= pd.DataFrame({
-    #   'onset'     :[     0,      1,     2,     3,     5  ],
-    #   'event_name':['ring', 'prep', 'dot', 'iti', 'ring' ],
-    #   'ring_type': ['neu',  'neu',  'neu', 'neu',  'rew' ],
-    #   'position':  [.75,      .75,    .75,   .75,      1 ]
-    # })
-    # dr.set_onsets(onset_df)
-    
+    logger = FileLogger()   
 
     n_runs=4
-    run_info = {'run_num': 1, 'subjid': 'SUBJID', 'timepoint': 1, 'arrington': True, 'fullscreen': False}
     eyetracker = None
+    participant = None
+    run_info = RunDialog(extra_dict={'EyeTracking': ['None','Arrnington'], 'fullscreen': False, 'truncated': True},
+                             order=['run_num','subjid', 'timepoint', 'EyeTracking', 'fullscreen'])
     
-    while run_info['run_num'] <= n_runs:
-        dlg = DlgFromDict(run_info, order=['run_num','subjid', 'timepoint', 'arrington', 'fullscreen'])
-        if not dlg.OK:
+    # open a dialog and then a psychopy window for each run
+    while run_info.run_num() <= n_runs:
+        if not run_info.dlg_ok():
             break
+        
+        # update participant (logging info)
+        if run_info.has_changed('subjid') or participant is None:
+            participant = run_info.mk_participant(['DollarReward'])
+            
 
-        run_num=run_info['run_num']
+        run_num=run_info.run_num()
 
-        win = create_window(run_info['fullscreen'])
+        win = create_window(run_info.info['fullscreen'])
         dr = DollarReward(win=win, externals=[printer])
         #dr.DEBUG= True
-        onset_df = dr.read_timing(run_num)[1:5]
+        onset_df = dr.read_timing(run_num)
+        if run_info.info['truncated']:
+            onset_df = onset_df[1:5]
         dr.set_onsets(onset_df)
         dr.trialnum = 0
 
-        if run_info['arrington'] and eyetracker is None:
-            eyetracker = Arrington()
-            dr.externals.append(eyetracker)
+        # write to external files
+        run_id = f"{participant.ses_id()}_task-DR_run-{run_num}"
+        if run_info.info['EyeTracking'] == "Arrington":
+            dr.externals.append(Arrington())
+            eyetracker.new(run_id)
 
-        if eyetracker:
-            eyetracker.new(f"sub-{run_info['subjid']}_ses-{run_info['timepoint']}_run-{run_info['run_num']}")
+        # added after eyetracker
+        # timing more important to eyetracker than log file
+        logger.new(participant.log_path(run_id))
+        dr.externals.append(logger)
 
-
-        t = core.getTime()
-        dr.run(start_at=t, end_wait=1.5)
+        # RUN
+        dr.run(end_wait=1.5)
+        dr.onset_df.to_csv(participant.run_path(f"onsets_{run_num:02d}"))
         dr.msg(f"Finished run {run_num}/{n_runs}!")
         dr.win.close()
 
-        run_info['run_num'] = run_info['run_num'] + 1
-
+        run_info.next_run()
