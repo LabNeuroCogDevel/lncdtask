@@ -4,26 +4,28 @@ from time import time
 class ExternalCom():
     def __init__(self, lookup=None):
         self.lookup = lookup
+    def print_time(self, msg):
+        print(f"extcom: {time():.2f} {msg}")
 
     def event(self, code=None):
         if code is None:
-            print("external: event code NONE")
+            self.print_time("event code NONE")
             return
         elif self.lookup:
             lcode = self.lookup(code)
-            print(f"external: event code {code} => {lcode}")
+            self.print_time(f"event {code} => {lcode}")
         else:
-            print(f"external: event code {code}")
+            self.print_time(f"event {code}")
 
 
     def new(self, fname):
-        print("external: new files %s" % fname)
+        self.print_time("new files %s" % fname)
 
     def start(self):
-        print("external: start")
+        self.print_time("start")
 
     def stop(self):
-        print("external: stop")
+        self.print_time("stop")
         
 class FileLogger(ExternalCom):
     def __init__(self, lookup=None):
