@@ -6,6 +6,7 @@ from math import floor, ceil
 import os
 import psychopy
 
+VPXDLL="C:\\Users\\Clark\\Desktop\\ViewPoint 2.9.2.5\\VPX_InterApp.dll"
 
 def eppos2relpos(x, orig_width=800):
     """convert from old eprime value 0-600 to -1 to 1
@@ -291,7 +292,7 @@ if __name__ == "__main__":
         # write to external files
         run_id = f"{participant.ses_id()}_task-DR_run-{run_num}"
         if run_info.info['EyeTracking'] == "Arrington":
-            dr.externals.append(Arrington())
+            dr.externals.append(Arrington(vpxDll=VPXDLL))
             eyetracker.new(run_id)
 
         # added after eyetracker
