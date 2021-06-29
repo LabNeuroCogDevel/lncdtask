@@ -1,3 +1,4 @@
+import os
 import os.path
 from time import time
 
@@ -53,9 +54,19 @@ class Arrington(ExternalCom):
     
     should already be calibrated using eyetracking computer stims
     """
-    def __init__(self, vpxDll="C:/ARI/VP/VPX_InterApp.dll", verbose=True, recVideo=False):
+    def __init__(self, vpxDll=None, verbose=True, recVideo=False):
         self.verbose=verbose
         self.recVideo=recVideo
+
+        # need vpxDLL to communicate with eye tracker
+        # e.g. "C:/ARI/VP/VPX_InterApp.dll"
+        # (unless maybe we communicate with sockets? see eprime code?)
+        # if not set in initialization, try to pull from environment
+        # in windows, run with batch. see desktop_run_dollarreward.bat
+        if vpxDll is None:
+            vpxDll = os.environ.get('VPXDLL')
+            if vpxDll is None:
+                raise Exception('VPXDLL variable not set! try setting in environ')
         from ctypes import cdll, CDLL
         if not os.path.exists(vpxDll):
             raise Exception('cannot find eyetracking dll @ ' + vpxDll)
