@@ -6,7 +6,7 @@ from math import floor, ceil
 import os
 import psychopy
 
-VPXDLL="C:\\Users\\Clark\\Desktop\\ViewPoint 2.9.2.5\\VPX_InterApp.dll"
+VPXDLL="C:\\ARI\\VP\\VPX_InterApp_64.dll"
 
 def eppos2relpos(x, orig_width=800):
     """convert from old eprime value 0-600 to -1 to 1
