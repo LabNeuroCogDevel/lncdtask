@@ -70,6 +70,7 @@ class Arrington(ExternalCom):
         from ctypes import cdll, CDLL
         if not os.path.exists(vpxDll):
             raise Exception('cannot find eyetracking dll @ ' + vpxDll)
+        print(f"trying to open {vpxDll} (confirmed does exist)")
         cdll.LoadLibrary(vpxDll)
         self.vpx = CDLL(vpxDll)
         if self.vpx.VPX_GetStatus(1) < 1:
@@ -79,8 +80,8 @@ class Arrington(ExternalCom):
     def event(self, code=None):
         if code is None:
             return
-        self.vpx.VPX_SendCommand('dataFile_InsertString "%s"' % ttlstr)
-        self.vpx.VPX_SendCommand('say "sent %s"' % ttlstr)
+        self.vpx.VPX_SendCommand('dataFile_InsertString "%s"' % code)
+        self.vpx.VPX_SendCommand('say "sent %s"' % code)
 
     def new(self, fname):
         self.runEyeName = fname.replace(".txt", "")

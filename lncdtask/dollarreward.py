@@ -6,6 +6,10 @@ from math import floor, ceil
 import os
 import psychopy
 
+# this is defined by enviromental variable
+# see ../desktop_run_dollarreward.bat
+# VPXDLL=r"C:/Windows/System32/VPX_InterApp_64.dll"
+
 def eppos2relpos(x, orig_width=800):
     """convert from old eprime value 0-600 to -1 to 1
     >>> eppos2relpos(0)
