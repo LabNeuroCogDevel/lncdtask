@@ -25,7 +25,7 @@ class ArringtonSocket(ExternalCom):
         cmd = cmd + ";"
         cmdl = len(cmd)
         buf = f"VPX2 {cmdl};220;{cmd}"
-        self.server.send(buf)
+        self.server.send(buf.encode())
 
     def event(self, code=None):
         if code is None:

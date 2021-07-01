@@ -256,7 +256,7 @@ if __name__ == "__main__":
     n_runs=4
     eyetracker = None
     participant = None
-    run_info = RunDialog(extra_dict={'EyeTracking': ['Arrington', 'ArringtonSocket', 'None'],
+    run_info = RunDialog(extra_dict={'EyeTracking': ['ArringtonSocket', 'Arrington', 'None'],
                                      'fullscreen': False, 'truncated': True},
                              order=['run_num','subjid', 'timepoint', 'EyeTracking', 'fullscreen'])
     

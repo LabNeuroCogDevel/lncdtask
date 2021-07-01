@@ -1,31 +1,17 @@
 #!/usr/bin/env python3
 from lncdtask.externalcom import Arrington
+from lncdtask.arrington_socket import ArringtonSocket
 from psychopy import core, event
 import os
 
 VPXDLL = r"C:/Windows/System32/VPX_InterApp_64.dll"
 
 try:
-    if not os.path.exists(VPXDLL):
-        raise Exception(f"VPXDLL doesn't exist! '{VPXDLL}'")
-    else:
-        print(f"using {VPXDLL}")
-
-    print("# USING RAW")
-    from ctypes import cdll, CDLL
-    cdll.LoadLibrary(VPXDLL)
-    vpx = CDLL(VPXDLL)
-    print(f"status: {vpx.VPX_GetStatus(1)}")
-    print("sending 'say' command")
-    res = vpx.VPX_SendCommand('say "python is connected"')
-    print(f"  res: {res}")
-
+ 
     print("# USING WRAPPER")
     print("connecting ...")
-    tracker = Arrington(vpxDll=VPXDLL)
+    tracker = ArringtonSocket("10.48.88.120")
 
-    print("using vpx directly")
-    tracker.vpx.VPX_SendCommand('say "python is connected"')
 
     print("opening new file")
     tracker.new("test_file")
@@ -44,6 +30,23 @@ try:
 
     print("done")
     tracker.stop()
+
+    if not os.path.exists(VPXDLL):
+        raise Exception(f"VPXDLL doesn't exist! '{VPXDLL}'")
+    else:
+        print(f"using {VPXDLL}")
+
+    print("# USING DLL")
+    from ctypes import cdll, CDLL
+    cdll.LoadLibrary(VPXDLL)
+    vpx = CDLL(VPXDLL)
+    print(f"status: {vpx.VPX_GetStatus(1)}")
+    print("sending 'say' command")
+    res = vpx.VPX_SendCommand('say "python is connected"')
+    print(f"  res: {res}")
+
+    print("using vpx directly")
+    tracker.vpx.VPX_SendCommand('say "python is connected"')
 
 except Exception as e:
     print(f"{e}")
