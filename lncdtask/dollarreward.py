@@ -6,8 +6,6 @@ from math import floor, ceil
 import os
 import psychopy
 
-VPXDLL="C:\\Users\\Clark\\Desktop\\ViewPoint 2.9.2.5\\VPX_InterApp.dll"
-
 def eppos2relpos(x, orig_width=800):
     """convert from old eprime value 0-600 to -1 to 1
     >>> eppos2relpos(0)
@@ -254,7 +252,7 @@ if __name__ == "__main__":
     n_runs=4
     eyetracker = None
     participant = None
-    run_info = RunDialog(extra_dict={'EyeTracking': ['None','Arrnington'],
+    run_info = RunDialog(extra_dict={'EyeTracking': ['Arrington', 'ArringtonSocket', 'None'],
                                      'fullscreen': False, 'truncated': True},
                              order=['run_num','subjid', 'timepoint', 'EyeTracking', 'fullscreen'])
     
@@ -268,19 +266,19 @@ if __name__ == "__main__":
             participant = run_info.mk_participant(['DollarReward'])
             
 
-        run_num=run_info.run_num()
+        run_num = run_info.run_num()
 
         win = create_window(run_info.info['fullscreen'])
         dr = DollarReward(win=win, externals=[printer])
-        dr.gobal_quit_key() # escape quits
-        dr.DEBUG= True
+        dr.gobal_quit_key()  # escape quits
+        dr.DEBUG = True
 
         # allow timing file to be provided on command line
         import sys
         if len(sys.argv)>1:
             tfile = sys.argv[1]
         else:
-            tfile="dollar_reward_events.txt"
+            tfile = "dollar_reward_events.txt"
         onset_df = dr.read_timing(run_num, fname=tfile)
 
         if run_info.info['truncated']:
@@ -292,7 +290,17 @@ if __name__ == "__main__":
         # write to external files
         run_id = f"{participant.ses_id()}_task-DR_run-{run_num}"
         if run_info.info['EyeTracking'] == "Arrington":
-            dr.externals.append(Arrington(vpxDll=VPXDLL))
+            from externalcom import Arrington
+            eyetracker = Arrington()
+
+        elif run_info.info['EyeTracking'] == "ArringtonSocket":
+            from arrington_socket import ArringtonSocket
+            eyetracker = ArringtonSocket()
+        else:
+            eyetracker = None
+
+        if eyetracker:
+            dr.externals.append(eyetracker)
             eyetracker.new(run_id)
 
         # added after eyetracker

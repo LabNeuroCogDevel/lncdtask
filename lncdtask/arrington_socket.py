@@ -1,5 +1,6 @@
 from externalcom import ExternalCom
 import socket
+import os
 
 
 class ArringtonSocket(ExternalCom):
