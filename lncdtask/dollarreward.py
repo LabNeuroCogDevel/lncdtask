@@ -251,13 +251,13 @@ if __name__ == "__main__":
     from lncdtask import ExternalCom, FileLogger, Participant, RunDialog
     from time import time
     printer = ExternalCom()
-    logger = FileLogger()   
+    logger = FileLogger()
 
     n_runs=4
     eyetracker = None
     participant = None
     run_info = RunDialog(extra_dict={'EyeTracking': ['ArringtonSocket', 'Arrington', 'None'],
-                                     'fullscreen': False, 'truncated': True},
+                                     'fullscreen': True, 'truncated': False},
                              order=['run_num','subjid', 'timepoint', 'EyeTracking', 'fullscreen'])
     
     # open a dialog and then a psychopy window for each run
