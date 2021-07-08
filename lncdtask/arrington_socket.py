@@ -1,6 +1,10 @@
-from externalcom import ExternalCom
+"""
+Connect to arrington viewpoint via socket
+"""
+
 import socket
 import os
+from externalcom import ExternalCom
 
 
 class ArringtonSocket(ExternalCom):

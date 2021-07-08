@@ -1,0 +1,104 @@
+#+title: Socket timing
+
+#+begin_src R :exports none :session
+library(dplyr)
+library(ggplot2)
+library(glue)
+theme_set(cowplot::theme_cowplot())
+add_time_cols <- function(d) {
+    # use column "time" to set 
+    # diff, dur, and onset
+    d$diff  <- c(0, diff(d$time))
+    d$dur   <- c(diff(d$time), NA)
+    d$onset <- d$time - d$time[1]
+    return(d)
+}
+sep_msg <- function(d)
+    tidyr::separate(d, msg, c('trial', 'event', 'rew', 'side'), remove=F) %>%
+    mutate(event=factor(ifelse(trial=='iti', 'iti', event), 
+                        levels=c("ring","cue","dot","iti")),
+           trial=as.numeric(trial))
+
+read_psyclog <- function(psyclog) {
+    # e.g. log/sub-000_ses-01_task-DR_run-3-1625165763.log
+    l <- read.table(
+        text=system(glue("sed 's/ /\t/' {psyclog}"), inter=T),
+        col.names=c("time", "msg"), sep="\t") %>%
+    sep_msg() %>%
+    add_time_cols() %>%
+    filter(!is.na(event))
+}
+
+viewpoint_msgs <- function(vplog){
+    # lines that start with 12 are messages from task to eyetracker
+    d <- read.table(text=system(glue(" grep ^12 {vplog}"), intern=T),
+                    col.names=c("et","time","msg"), sep="\t") %>%
+        sep_msg() %>%
+        add_time_cols()
+}
+
+read_pysocketlog <- function(logfile) {
+    # only care about timing and "InsertString" lines 
+    # and then only the text within the insertstring command
+    cmd <- glue("perl -F'\\t' -slane \\
+                'next unless $F[1]=~/InsertString \"?([^\";]+)/; \
+               print \"$F[0]\t$1\"' {logfile}")
+    d <- read.table(text=system(cmd, intern=T),
+                    col.names=c("time","msg"), sep="\t") %>%
+         sep_msg() %>%
+         add_time_cols()
+}
+
+vis_timing <- function(d) {
+   eventdur_point <-
+    ggplot(d %>% filter(event %in% c('ring','cue','dot'))) +
+       aes(y=dur,x=trial, color=from) +
+       geom_point() +
+       facet_wrap(~event) +
+       ggtitle("local socket vs psychopy flip time")
+
+   diff_hist <-
+       ggplot(d %>% filter(diff < 4, diff > 0.1)) +
+       aes(x=diff, fill=from) +
+       geom_histogram() + #position='dodge')
+       ggtitle('hist of event onset diff. expect 1.5 for all')
+  
+    cowplot::plot_grid(nrow=2, eventdur_point, diff_hist)
+}
+
+#+end_src
+
+#+RESULTS:
+
+* Localhost socket timing
+  Is python code or socket module causing timing problems?
+  
+  
+** record timing
+   setup a local socket server to receive and timestamp messages from task
+   #+begin_src shell :eval never
+   ../tests/fake_socket_server.py logs_socket/pysockserver_timings.tsv &
+   ET_HOST=localhost ../lncdtask/dollarreward.py 
+   #+end_src
+
+** plot differences
+
+   The task write fliptime to a file and then sends the event info over the socket. Timing should be close. 
+
+   When the socket is on the same computer, the timing is consistent between the file and socket.
+   #+begin_src R :session :file ./logs_socket/eventpoint_diffhist.png :results file graphics
+   socklogfile <- "./logs_socket/pysockserver_timings.tsv"
+   psycfile <- "./logs_socket/sub-000_ses-01_task-DR_run-1-1625753336.log"
+   pysock <- read_pysocketlog(socklogfile) %>% mutate(from="socket", i=1:n())
+   psylog <- read_psyclog(psycfile) %>% mutate(from="psyc", i=1:n())
+  
+   flip_and_sock <- rbind(pysock, psylog)
+   vis_timing(flip_and_sock)
+
+   #overlap nearly exactly
+   #ggplot(flip_and_sock) + aes(x=i, y=onset, shape=event, color=from)+ geom_point() 
+
+   #+end_src
+
+   #+RESULTS:
+   [[file:./logs_socket/eventpoint_diffhist.png]]

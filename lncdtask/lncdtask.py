@@ -13,6 +13,7 @@ from participant import Participant, vdate_str
 from rundialog import RunDialog
 from screen import wait_until, create_window, take_screenshot, msg_screen, replace_img, wait_for_scanner
 from externalcom import Arrington, Eyelink, MuteWinSound, ParallelPortEEG, AllExternal, ExternalCom, FileLogger
+from arrington_socket import ArringtonSocket
 import psychopy
 from psychopy import visual, core
 
