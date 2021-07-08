@@ -87,7 +87,7 @@ vis_timing <- function(d, cmpstr) {
    The task write fliptime to a file and then sends the event info over the socket. Timing should be close. 
 
    When the socket is on the same computer, the timing is consistent between the file and socket.
-   #+begin_src R :session :file ./logs_socket/eventpoint_diffhist.png :results file graphics
+   #+begin_src R :session :file ./logs_socket/eventpoint_diffhist.png :results file graphics :cache yes :exports results
    socklogfile <- "./logs_socket/pysockserver_timings.tsv"
    psycfile <- "./logs_socket/sub-000_ses-01_task-DR_run-1-1625753336.log"
    pysock <- read_pysocketlog(socklogfile) %>% mutate(from="socket", i=1:n())
@@ -108,7 +108,7 @@ vis_timing <- function(d, cmpstr) {
   
   Using python socket server to record timing of sent events over wifi. 
 
-  #+begin_src R :session :results file graphics :file ./logs_socket_wifi/eventpoint_diffhist.png
+  #+begin_src R :session :results file graphics :file ./logs_socket_wifi/eventpoint_diffhist.png :cache yes :exports results
    #+begin_src R :session :file ./logs_socket/eventpoint_diffhist.png :results file graphics
    socklogfile_wifi <- "./logs_socket_wifi/pysocket_wifi.tsv"
    psycfile_wifi <- "./logs_socket_wifi/sub-wifi_ses-01_task-DR_run-1-1625761526.log"
@@ -124,7 +124,7 @@ vis_timing <- function(d, cmpstr) {
   [[file:./logs_socket_wifi/eventpoint_diffhist.png]]
   
   the upper and lower timing errors are less than 50ms
-  #+begin_src R :session :export results
+  #+begin_src R :session :exports results
    wifi_diff_range <-
     wifi_long %>%
     filter(from=="wifisocket", diff>.1, diff<3) %>%
@@ -141,7 +141,7 @@ vis_timing <- function(d, cmpstr) {
   
 * Arrington viewpoint
   
-  #+begin_src R :session :results file graphics :file ./logs_arrington/eventpoint_diffhist.png
+  #+begin_src R :session :results file graphics :file ./logs_arrington/eventpoint_diffhist.png :cache yes :exports results
 
    viewpoint_file <- "./logs_arrington/sub-000_ses-01_task-DR_run-3"
    psycfile_vp <- "./logs_arrington/log/sub-000_ses-01_task-DR_run-3-1625165763.log"
@@ -158,7 +158,7 @@ vis_timing <- function(d, cmpstr) {
   
 
   Viewpoint recorded messages range > 100ms from expected
-  #+begin_src R :session :export results
+  #+begin_src R :session :exports results :cache yes
    vp_diff_range <-
     arrington_long %>%
     filter(from=="viewpoint", diff>.1, diff<3, !is.na(diff)) %>%
