@@ -34,7 +34,8 @@ viewpoint_msgs <- function(vplog){
     d <- read.table(text=system(glue(" grep ^12 {vplog}"), intern=T),
                     col.names=c("et","time","msg"), sep="\t") %>%
         sep_msg() %>%
-        add_time_cols()
+        add_time_cols() %>%
+        select(-et)
 }
 
 read_pysocketlog <- function(logfile) {
@@ -49,13 +50,13 @@ read_pysocketlog <- function(logfile) {
          add_time_cols()
 }
 
-vis_timing <- function(d) {
+vis_timing <- function(d, cmpstr) {
    eventdur_point <-
     ggplot(d %>% filter(event %in% c('ring','cue','dot'))) +
        aes(y=dur,x=trial, color=from) +
        geom_point() +
        facet_wrap(~event) +
-       ggtitle("local socket vs psychopy flip time")
+       ggtitle(glue("{cmpstr} flip time"))
 
    diff_hist <-
        ggplot(d %>% filter(diff < 4, diff > 0.1)) +
@@ -93,7 +94,7 @@ vis_timing <- function(d) {
    psylog <- read_psyclog(psycfile) %>% mutate(from="psyc", i=1:n())
   
    flip_and_sock <- rbind(pysock, psylog)
-   vis_timing(flip_and_sock)
+   vis_timing(flip_and_sock, "local socket vs psychopy")
 
    #overlap nearly exactly
    #ggplot(flip_and_sock) + aes(x=i, y=onset, shape=event, color=from)+ geom_point() 
@@ -102,3 +103,71 @@ vis_timing <- function(d) {
 
    #+RESULTS:
    [[file:./logs_socket/eventpoint_diffhist.png]]
+
+* python socket with wifi
+  
+  Using python socket server to record timing of sent events over wifi. 
+
+  #+begin_src R :session :results file graphics :file ./logs_socket_wifi/eventpoint_diffhist.png
+   #+begin_src R :session :file ./logs_socket/eventpoint_diffhist.png :results file graphics
+   socklogfile_wifi <- "./logs_socket_wifi/pysocket_wifi.tsv"
+   psycfile_wifi <- "./logs_socket_wifi/sub-wifi_ses-01_task-DR_run-1-1625761526.log"
+   wifi_long <- rbind(
+       read_pysocketlog(socklogfile_wifi) %>% mutate(from="wifisocket", i=1:n()),
+       read_psyclog(psycfile_wifi) %>% mutate(from="psyc", i=1:n()))
+  
+   vis_timing(wifi_long, "wifi pysocket vs psychopy")
+
+  #+end_src
+
+  #+RESULTS:
+  [[file:./logs_socket_wifi/eventpoint_diffhist.png]]
+  
+  the upper and lower timing errors are less than 50ms
+  #+begin_src R :session :export results
+   wifi_diff_range <-
+    wifi_long %>%
+    filter(from=="wifisocket", diff>.1, diff<3) %>%
+    select(diff) %>%
+    range
+   
+  round(wifi_diff_range - 1.5, 3)
+  #+end_src
+
+  #+RESULTS:
+  | -0.043 |
+  |  0.043 |
+
+  
+* Arrington viewpoint
+  
+  #+begin_src R :session :results file graphics :file ./logs_arrington/eventpoint_diffhist.png
+
+   viewpoint_file <- "./logs_arrington/sub-000_ses-01_task-DR_run-3"
+   psycfile_vp <- "./logs_arrington/log/sub-000_ses-01_task-DR_run-3-1625165763.log"
+
+   arrington_long <- rbind(
+       viewpoint_msgs(viewpoint_file) %>% mutate(from="viewpoint", i=1:n()),
+       read_psyclog(psycfile_vp) %>% mutate(from="psyc", i=1:n()))
+
+   vis_timing(arrington_long, "viewpoint vs psychopy")
+  #+end_src
+
+  #+RESULTS:
+  [[file:./logs_arrington/eventpoint_diffhist.png]]
+  
+
+  Viewpoint recorded messages range > 100ms from expected
+  #+begin_src R :session :export results
+   vp_diff_range <-
+    arrington_long %>%
+    filter(from=="viewpoint", diff>.1, diff<3, !is.na(diff)) %>%
+    select(diff) %>%
+    range
+
+  round(vp_diff_range - 1.5, 3)
+  #+end_src
+
+  #+RESULTS:
+  | -0.25 |
+  |  0.75 |
