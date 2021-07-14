@@ -71,9 +71,18 @@ vis_timing <- function(d, cmpstr) {
 
 #+RESULTS:
 
-* Localhost socket timing
-  Is python code or socket module causing timing problems?
+* Timing issue
+  ViewPoint eye tracking files have event trigger marks up to .75 seconds from where they are expected.
+
+
+  Is the python task code or socket module causing timing problems? It doesn't look like it.
   
+  Local and wifi timing experiments were run on linux computers. But timing for windows sockets are similar. All are reasonable when compared to the large timing error between event and reported timing of event trigger in the viewpoint log.
+  
+  The issue might just be that there was no eye tracked so viewpoint's log did not sample frequently enough. see
+  [[*No calibration, no eye: uneven sample rate]]
+
+* Localhost socket timing
   
 ** record timing
    setup a local socket server to receive and timestamp messages from task
@@ -101,7 +110,7 @@ vis_timing <- function(d, cmpstr) {
 
    #+end_src
 
-   #+RESULTS:
+   #+RESULTS[fc3ed0860bbd5b34bf204d4a02b7a0b3d25199fa]:
    [[file:./logs_socket/eventpoint_diffhist.png]]
 
 * python socket with wifi
@@ -139,6 +148,40 @@ vis_timing <- function(d, cmpstr) {
   |  0.043 |
 
   
+* Windows task and wifi
+  
+  Development is on linux, but arrington interfaces with task on a windows laptop. Does OS matter? Doesn't look like it
+
+  #+begin_src R :session :results file graphics :file ./logs_from_windows/eventpoint_diffhist.png :cache yes :exports results
+   #+begin_src R :session :file ./logs_socket/eventpoint_diffhist.png :results file graphics
+   socklogfile_win <- "./logs_from_windows/pysocket_windows.tsv"
+   psycfile_win <- "./logs_from_windows/sub-000_ses-01_task-DR_run-1-1626203839.log"
+   win_long <- rbind(
+       read_pysocketlog(socklogfile_win) %>% mutate(from="windows", i=1:n()),
+       read_psyclog(psycfile_win) %>% mutate(from="psyc", i=1:n()))
+  
+   vis_timing(win_long, "windows wifi pysocket vs psychopy")
+
+  #+end_src
+
+  #+RESULTS[c71c020b97b8d9b7fc7e126993e3c12573fedbf2]:
+  [[file:./logs_from_windows/eventpoint_diffhist.png]]
+
+  #+begin_src R :session :exports results
+   win_diff_range <-
+    win_long %>%
+    filter(from=="windows", diff>.1, diff<3) %>%
+    select(diff) %>%
+    range
+   
+  round(win_diff_range - 1.5, 3)
+  #+end_src
+
+  #+RESULTS:
+  | -0.018 |
+  |  0.019 |
+
+  
 * Arrington viewpoint
   
   #+begin_src R :session :results file graphics :file ./logs_arrington/eventpoint_diffhist.png :cache yes :exports results
@@ -153,7 +196,7 @@ vis_timing <- function(d, cmpstr) {
    vis_timing(arrington_long, "viewpoint vs psychopy")
   #+end_src
 
-  #+RESULTS:
+  #+RESULTS[2b8d6a3f5efad5f61e2bd668be4510d947789535]:
   [[file:./logs_arrington/eventpoint_diffhist.png]]
   
 
@@ -168,6 +211,20 @@ vis_timing <- function(d, cmpstr) {
   round(vp_diff_range - 1.5, 3)
   #+end_src
 
-  #+RESULTS:
+  #+RESULTS[0d9c41f506f0bcdb9fa3af4e35bba5c1c132d8e1]:
   | -0.25 |
   |  0.75 |
+
+  
+** No calibration, no eye: uneven sample rate
+   The viewpoint file does not have many samples between events. The data was collected without an eye to record nor any calibration.
+   #+begin_src R :session :cache yes :file ./logs_arrington/sample_dist.png :results file graphics 
+
+   # viewpoint_file <- "./logs_arrington/sub-000_ses-01_task-DR_run-3"
+   vp_sample_times <- read.table(text=system(glue("grep ^10 {viewpoint_file}|cut -f2"), intern=T))
+   task_end <- 300
+   hist(diff(vp_sample_times[vp_sample_times < task_end])
+   #+end_src
+
+   #+RESULTS[e827eb734d5db4cc2b5e124160ac6453cbdbeea2]:
+   [[file:./logs_arrington/sample_dist.png]]
