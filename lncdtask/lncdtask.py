@@ -97,6 +97,7 @@ class LNCDTask():
 
     def mark_and_quit(self):
         self.mark_external("FORCE QUIT")
+        self.externals.stop()
         core.quit()
 
     def mark_external(self, *kargs):
