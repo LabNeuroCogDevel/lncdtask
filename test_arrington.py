@@ -3,7 +3,8 @@ from lncdtask.externalcom import Arrington
 from psychopy import core, event
 import os
 
-VPXDLL = "C:/Users/Clark/Desktop/VPx64-Client/VPX_InterApp_64.dll"
+#VPXDLL = "C:/Users/Clark/Desktop/VPx64-Client/VPX_InterApp_64.dll"
+VPXDLL = 'C:\\Users\\Luna\\Desktop\\VPx32\\Interfaces\\VPx32-Client\\VPX_InterApp_32.dll'
 try:
     if not os.path.exists(VPXDLL):
         raise Exception(f"VPXDLL doesn't exist! '{VPXDLL}'")

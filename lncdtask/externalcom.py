@@ -6,7 +6,8 @@ class ExternalCom():
     def __init__(self, lookup=None):
         self.lookup = lookup
     def print_time(self, msg):
-        print(f"extcom: {time():.2f} {msg}")
+        #print(f"extcom: {time():.2f} {msg}")
+        print("extcom: %.02f %s", (time(), msg))
 
     def event(self, code=None):
         if code is None:
@@ -14,9 +15,9 @@ class ExternalCom():
             return
         elif self.lookup:
             lcode = self.lookup(code)
-            self.print_time(f"event {code} => {lcode}")
+            self.print_time("event %s => %s".format(code, lcode))
         else:
-            self.print_time(f"event {code}")
+            self.print_time("event " + code)
 
 
     def new(self, fname):
@@ -32,7 +33,7 @@ class FileLogger(ExternalCom):
     def __init__(self, lookup=None):
         pass
     def write(self, msg):
-        self.fh.write(f"{time():.5f} {msg}\n")
+        self.fh.write("%0.5f %s\n",(time(), msg))
     def new(self, fname):
         self.fh = open(fname, 'a+')
     def event(self, code=None):
