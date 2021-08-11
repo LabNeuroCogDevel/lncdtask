@@ -308,7 +308,7 @@ if __name__ == "__main__":
             eyetracker.new(run_id)
         else:
             print("WARNING: tracker is None, selected '%s'" %
-                    run_info['EyeTracking'])
+                    run_info.info['EyeTracking'])
 
         # added after eyetracker
         # timing more important to eyetracker than log file
