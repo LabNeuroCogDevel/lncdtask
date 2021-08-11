@@ -9,7 +9,20 @@ If timing is fixed, `set_onsets()` and `run()` can push most of the burden of ta
 dataframe
 """
 
-from participant import Participant, vdate_str
+# kludge: different imports depending on context
+# lncdtask/dollarreward.py is run as though this isn't a module
+# TODO: rework dollarreward as console script?
+try:
+    from participant import Participant
+except ModuleNotFoundError:
+    from os.path import dirname, abspath
+    import sys
+    this_file = abspath(__file__)
+    package_root = dirname(this_file)
+    print(f"inserting {package_root} to path")
+    sys.path.insert(1, package_root)
+    from participant import Participant
+
 from rundialog import RunDialog
 from screen import wait_until, create_window, take_screenshot, msg_screen, replace_img, wait_for_scanner
 from externalcom import Arrington, Eyelink, MuteWinSound, ParallelPortEEG, AllExternal, ExternalCom, FileLogger

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
 # use either host socket or dll with viewpointclient
-HOST = "10.48.88.120"
 VPXDLL = r"C:/Windows/System32/VPX_InterApp_64.dll"
-
+# 20210811 remove host to default to VPXDLL
+#HOST = "10.48.88.120"
 
 import os
 import sys
@@ -37,22 +37,25 @@ try:
         else:
             print(f"using {VPXDLL}")
 
-        print("# DLL directly")
-        from ctypes import cdll, CDLL
-        cdll.LoadLibrary(VPXDLL)
-        vpx = CDLL(VPXDLL)
-        print(f"status: {vpx.VPX_GetStatus(1)}")
-        print("'say' command to ET")
-        res = vpx.VPX_SendCommand('say "python is connected"')
-        print(f"  res: {res}")
+        # 20210811 from Arrington, need to reincode string
+        # vpx.VPX_SendCommand(str(cmd).encode('ascii'))
+
+        #print("# DLL directly")
+        #from ctypes import cdll, CDLL
+        #cdll.LoadLibrary(VPXDLL)
+        #vpx = CDLL(VPXDLL)
+        #print(f"status: {vpx.VPX_GetStatus(1)}")
+        #print("'say' command to ET")
+        #res = vpx.VPX_SendCommand('say "python is connected"')
+        #print(f"  res: {res}")
 
         print("creating tracker object with dll")
         tracker = Arrington(VPXDLL, verbose=True)
 
         print("using vpx directly via tracker package")
-        tracker.vpx.VPX_SendCommand('say "python is connected via wrapper"')
+        tracker.vpx.VPX_SendCommand(str('say "python is connected via wrapper"').encode('ascii'))
     else:
-        raise Exception(f"define HOST or VPXDLL in {__file__}")
+        raise Exception(f"define HOST or VPXDLL in {__file__} or specify as 1st arg on cli")
 
 
     print("# USING lncdtask ET WRAPPER")
