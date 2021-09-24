@@ -1,4 +1,7 @@
-from lncdtask import LNCDTask, create_window, replace_img, wait_for_scanner
+try:
+    from lncdtask import LNCDTask, create_window, replace_img, wait_for_scanner
+except ImportError:
+    from lncdtask.lncdtask import LNCDTask, create_window, replace_img, wait_for_scanner
 from psychopy import misc, visual
 import numpy as np
 import pandas as pd
