@@ -1,4 +1,7 @@
-from lncdtask import LNCDTask, create_window, replace_img, wait_for_scanner
+try:
+    from lncdtask import LNCDTask, create_window, replace_img, wait_for_scanner
+except ImportError:
+    from lncdtask.lncdtask import LNCDTask, create_window, replace_img, wait_for_scanner
 from psychopy import misc, visual
 import numpy as np
 import pandas as pd
@@ -267,7 +270,7 @@ if __name__ == "__main__":
     n_runs=4
     eyetracker = None
     participant = None
-    run_info = RunDialog(extra_dict={'EyeTracking': ['ArringtonSocket', 'Arrington', 'None'],
+    run_info = RunDialog(extra_dict={'EyeTracking': ['Arrington','ArringtonSocket', 'None'],
                                      'fullscreen': True, 'truncated': False},
                              order=['run_num','subjid', 'timepoint', 'EyeTracking', 'fullscreen'])
     
@@ -317,12 +320,15 @@ if __name__ == "__main__":
         if eyetracker:
             dr.externals.append(eyetracker)
             eyetracker.new(run_id)
+        else:
+            print("WARNING: tracker is None, selected '%s'" %
+                    run_info.info['EyeTracking'])
 
         # added after eyetracker
         # timing more important to eyetracker than log file
         logger.new(participant.log_path(run_id))
         dr.externals.append(logger)
-        
+
         # RUN
         dr.get_ready()
         dr.run(end_wait=1.5)

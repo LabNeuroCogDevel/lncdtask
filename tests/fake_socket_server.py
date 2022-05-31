@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import socket
 from time import time
+import os
 
 def socket_collect(host='127.0.0.1', port=5000, verbose=False):
     messages = []
@@ -41,6 +42,9 @@ if __name__ == "__main__":
     """USAGE:
       tests/socket_server.py debug/dollarreward.tsv &
       ET_HOST=localhost lncdtask/dollarreward.py
+
+      VPLOOP=1 tests/socket_server.py
+      wine ViewPointClient_64.exe
     """
     import sys
     fname = None
@@ -49,4 +53,9 @@ if __name__ == "__main__":
         print(f"writting to {fname}")
 
     messages = socket_collect(verbose=True)
-    write_collection(fname, messages)
+    # if we want to connect to viewpoint client
+    # we need to resume after sending an empty message
+    while(os.environ.get('VPLOOP')):
+        messages.append(socket_collect(verbose=True))
+    if fname:
+        write_collection(fname, messages)
