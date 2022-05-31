@@ -172,6 +172,17 @@ class DollarReward(LNCDTask):
         onset_df['onset'] = [x*tr for x in range(len(onset_df))]
         return onset_df
 
+    def read_timing_tr_independent(self, fname):
+        """
+        read in timing extracted from eprime1 .es file
+        """
+        if not os.path.exists(fname):
+            raise Exception(f"cannot find non-tr locked timing file! '{fname}'")
+        print(fname)
+        df = pd.read_csv(fname,sep="\t")
+        df['position'] = eppos2relpos(ep_df.position, 640)
+        return df
+
 
     def generate_timing(n=40, dur=1.5, n_catch1=6, n_catch2=6):
         """
