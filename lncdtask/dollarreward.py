@@ -164,8 +164,8 @@ class DollarReward(LNCDTask):
             raise Exception(f"cannot find eprime timing file! '{fname}'")
         print(fname)
         ep_df = pd.read_csv(fname,sep="\t", header=None)
-        ep_df.columns=["run","epevent","position600", "ring_type","event_name"]
-        ep_df['position'] = eppos2relpos(ep_df.position600)
+        ep_df.columns=["run","epevent","position640", "ring_type","event_name"]
+        ep_df['position'] = eppos2relpos(ep_df.position640, 640)
         ep_df = ep_df[ep_df.run==run_num].reset_index()
         start_fix = pd.DataFrame({'event_name':['iti']*n_start_iti})
         onset_df = pd.concat([start_fix, ep_df])
