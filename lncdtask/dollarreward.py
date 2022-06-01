@@ -182,8 +182,9 @@ class DollarReward(LNCDTask):
         if not os.path.exists(fname):
             raise Exception(f"cannot find non-tr locked timing file! '{fname}'")
         print(fname)
-        df = pd.read_csv(fname,sep="\t")
-        df['position'] = eppos2relpos(ep_df.position, 640)
+        df = pd.read_csv(fname, sep="\t")
+        print(df)
+        df['position'] = eppos2relpos(df.position, 640)
         return df
 
 
@@ -273,7 +274,20 @@ if __name__ == "__main__":
     run_info = RunDialog(extra_dict={'EyeTracking': ['Arrington','ArringtonSocket', 'None'],
                                      'fullscreen': True, 'truncated': False},
                              order=['run_num','subjid', 'timepoint', 'EyeTracking', 'fullscreen'])
+
     
+    # if we specify file(s) as arguments. read as though they're tr independent files
+    # see [[file:../timing/timing_to_txt.R::afni_to_task]]
+    # otherwise use ../dollar_reward_events.txt (old, from original eprime version)
+    # this should/can be set by .bat files
+    import sys
+    if len(sys.argv)>1:
+        tfiles = sys.argv[1:]
+        n_runs = len(sys.argv) - 1
+        read_file_func = lambda dr, runnum: dr.read_timing_tr_independent(fname=tfiles[runnum-1])
+    else:
+        read_file_func = lambda dr, runnum: dr.read_timing(runnum, fname="dollar_reward_events.txt")
+
     # open a dialog and then a psychopy window for each run
     while run_info.run_num() <= n_runs:
         if not run_info.dlg_ok():
@@ -291,13 +305,9 @@ if __name__ == "__main__":
         dr.gobal_quit_key()  # escape quits
         dr.DEBUG = True
 
-        # allow timing file to be provided on command line
-        import sys
-        if len(sys.argv)>1:
-            tfile = sys.argv[1]
-        else:
-            tfile = "dollar_reward_events.txt"
-        onset_df = dr.read_timing(run_num, fname=tfile)
+        # read_file_func goes through specified files
+        # or defaults to original eprime task list
+        onset_df = read_file_func(dr, run_num)
 
         if run_info.info['truncated']:
             onset_df = onset_df[0:5]
