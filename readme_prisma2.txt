@@ -8,3 +8,8 @@
  - task run through. 
  ET<->EPrime need cross over and static network 
  ET computer needs to show calibration screen to projector
+
+2022-06-01 WF
+  ET computer password matches user: 3T-User
+  copy lncdtask over again. at least for correct dot position
+  change ncanda to clark
