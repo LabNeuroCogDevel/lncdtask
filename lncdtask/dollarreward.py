@@ -102,7 +102,13 @@ class DollarReward(LNCDTask):
         return(self.flip_at(onset, self.trialnum, 'dot', ring_type, position))
 
     def get_ready(self, triggers=['equal']):
-        "flip the instruction png, wait for the scanner trigger"
+        "flip the two instruction png, wait for the scanner trigger"
+        self.instructionpng.image = 'images/instruction_1.png'
+        self.instructionpng.draw()
+        self.win.flip()
+        psychopy.event.waitKeys()
+        print("Waiting for scanner")
+        self.instructionpng.image = 'images/instructions.png'
         self.instructionpng.draw()
         self.win.flip()
         psychopy.event.waitKeys(keyList=triggers)
