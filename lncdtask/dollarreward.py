@@ -292,9 +292,11 @@ if __name__ == "__main__":
     # 20220825 - mgs task has port as 0xD010. earlier as DDF8
     #            0xDDF8 == 56824; 0xD010=53264
     run_info = RunDialog(extra_dict={'EyeTracking': ['EEG', 'Arrington','ArringtonSocket', 'None'],
-                                     'fullscreen': True, 'truncated': False,
+                                     'screenhack': False,
+                                     'fullscreen': True,
+                                     'truncated': False,
                                      'LPTport': "53264"},
-                             order=['run_num','subjid', 'timepoint', 'EyeTracking', 'fullscreen', 'LPTport'])
+                             order=['run_num','subjid', 'timepoint', 'EyeTracking', 'fullscreen','screenhack', 'LPTport'])
 
     
     # if we specify file(s) as arguments. read as though they're tr independent files
@@ -321,7 +323,18 @@ if __name__ == "__main__":
 
         run_num = run_info.run_num()
 
-        win = create_window(run_info.info['fullscreen'])
+        if run_info.info['screenhack']:
+            # pygame (default), pyglet (newer), glfw (experimental)
+            # MR res = [1024,768]
+            # fullscreen doesn't exist. goes into power saving mode
+            win = visual.Window([1024,768])#, winType='pyglet')
+            win.winHandle.activate()  # make sure the display window has focus
+            win.mouseVisible = False  # and that we don't see the mouse
+            win.color = (-1, -1, -1)
+            win.flip()
+            win.flip()
+        else:
+            win = create_window(run_info.info['fullscreen'])
         dr = DollarReward(win=win, externals=[printer])
         dr.gobal_quit_key()  # escape quits
         dr.DEBUG = True
