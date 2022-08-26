@@ -305,7 +305,9 @@ if __name__ == "__main__":
     # this should/can be set by .bat files
     import sys
     if len(sys.argv)>1:
+        from random import shuffle
         tfiles = sys.argv[1:]
+        shuffle(tfiles)  # rearrange inpace/side-effect
         n_runs = len(sys.argv) - 1
         read_file_func = lambda dr, runnum: dr.read_timing_tr_independent(fname=tfiles[runnum-1])
     else:
