@@ -25,6 +25,26 @@ def eppos2relpos(x, orig_width=800):
     half_width=orig_width/2
     return (x-half_width)/half_width
 
+
+def ttl(trial, event, rew, pos):
+    """
+    input is same as what is given to flip_at
+    passed from there into
+    callOnFlip(mark_func, *kargs)
+    """
+    rew_look = {'neu': 100, 'rew': 200}
+    evt_look = { 'iti': 10, 'ring': 20,
+                'prep': 30,  'dot': 40}
+    pos_look = {  '7': 1, '214': 2,
+                '426': 3, '633': 4}
+
+    v = rew_look.get(rew, 0) +\
+        evt_look.get(event, 50) + \
+        pos_look.get(str(pos), 5)
+
+    return(v)
+            
+
 class DollarReward(LNCDTask):
     """
               Description
@@ -98,6 +118,8 @@ class DollarReward(LNCDTask):
         # hack to get dot size
         imgpos = replace_img(self.img, None, position, self.dotsize_edge)
         self.crcl.pos = imgpos
+        print(self.crcl.size)
+        print(self.crcl.units)
         self.crcl.draw()
         return(self.flip_at(onset, self.trialnum, 'dot', ring_type, position))
 
@@ -112,18 +134,8 @@ class DollarReward(LNCDTask):
         self.instructionpng.draw()
         self.win.flip()
         psychopy.event.waitKeys(keyList=triggers)
-        
 
     # -- helpers
-
-    def ttl(self):
-        pass
-        # # left to right 1 to 5 from -1 -.5 .5 1 | no 0 (center), never see 3
-        # pos_code = pos*2 + 3
-        # ttl = pos_code + \
-        #     eventTTLlookup.get(event, 0) +\
-        #     100 * int(trialtype == 'rew')
-
     def make_ring(self, text_size=45):
         """ create the ring
         20210518 - use images instead to match eprime experiment
@@ -183,7 +195,7 @@ class DollarReward(LNCDTask):
 
     def read_timing_tr_independent(self, fname):
         """
-        read in timing extracted from eprime1 .es file
+        timing that is not tr locked -- entirely specified by csv
         """
         if not os.path.exists(fname):
             raise Exception(f"cannot find non-tr locked timing file! '{fname}'")
@@ -277,9 +289,12 @@ if __name__ == "__main__":
     n_runs=4
     eyetracker = None
     participant = None
-    run_info = RunDialog(extra_dict={'EyeTracking': ['Arrington','ArringtonSocket', 'None'],
-                                     'fullscreen': True, 'truncated': False},
-                             order=['run_num','subjid', 'timepoint', 'EyeTracking', 'fullscreen'])
+    # 20220825 - mgs task has port as 0xD010. earlier as DDF8
+    #            0xDDF8 == 56824; 0xD010=53264
+    run_info = RunDialog(extra_dict={'EyeTracking': ['EEG', 'Arrington','ArringtonSocket', 'None'],
+                                     'fullscreen': True, 'truncated': False,
+                                     'LPTport': "53264"},
+                             order=['run_num','subjid', 'timepoint', 'EyeTracking', 'fullscreen', 'LPTport'])
 
     
     # if we specify file(s) as arguments. read as though they're tr independent files
@@ -330,6 +345,10 @@ if __name__ == "__main__":
         elif run_info.info['EyeTracking'] == "ArringtonSocket":
             from arrington_socket import ArringtonSocket
             eyetracker = ArringtonSocket()
+        elif run_info.info['EyeTracking'] == 'EEG':
+            from externalcom import ParallelPortEEG
+            port = int(run_info.info['LPTport'])
+            eyetracker = ParallelPortEEG(port, ttl, verbose=True)
         else:
             eyetracker = None
 
