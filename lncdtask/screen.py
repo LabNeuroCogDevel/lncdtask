@@ -103,7 +103,7 @@ def replace_img(img, filename, horz, imgpercent=.04, defsize=(225, 255), vertOff
         (iw, ih) = defsize
 
     (sw, sh) = img.win.size
-    img.units = 'pixels'
+    img.units = 'pix'
 
     # resize img
     scalew = ratio(sw, iw, imgpercent)

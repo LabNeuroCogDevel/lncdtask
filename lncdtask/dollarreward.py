@@ -25,6 +25,61 @@ def eppos2relpos(x, orig_width=800):
     half_width=orig_width/2
     return (x-half_width)/half_width
 
+
+def ttl_wrap(code):
+    """
+    might int input: start and stop codes from library
+    otherwise is a string of trial event rew pos
+    sent to ttl()
+    """
+    if type(code) == str:
+        einfo = code.split(' ')
+        code = ttl(*einfo)
+        print(f"code: {code} from {einfo}")
+    return code
+
+def ttl(trial, event=None, rew=None, pos=None):
+    """
+    input is same as what is given to flip_at
+    passed from there into
+    callOnFlip(mark_func, *kargs)
+    """
+    rew_look = {'neu': 100, 'rew': 200}
+    evt_look = { 'iti': 10, 'ring': 20, 'prep': 20,
+                'cue': 30,  'dot': 40}
+    # though we were using input pos
+    # but actually getting calc screen -1 to 1
+    #pos_look = {  '7': 1, '214': 2,
+    #            '426': 3, '633': 4}
+    #pos_look= pos_look.get(str(pos), 5)
+    if pos is None:
+        pos = 9
+    else:
+        pos = float(pos)
+
+    if pos < -.7: #-.97
+        pos_look = 1
+    elif pos < -.5: # -.66
+        pos_look = 2
+    elif pos < 0: # -.33
+        pos_look = 3
+    elif pos < .5: # .33
+        pos_look = 4
+    elif pos < .9: # .66
+        pos_look = 5
+    elif pos < 1: # .97
+        pos_look = 6
+    else:
+        pos_look = 0 # iti -- no side
+
+
+    v = rew_look.get(rew, 0) +\
+        evt_look.get(event, 50) + \
+        pos_look
+
+    return(v)
+            
+
 class DollarReward(LNCDTask):
     """
               Description
@@ -98,26 +153,24 @@ class DollarReward(LNCDTask):
         # hack to get dot size
         imgpos = replace_img(self.img, None, position, self.dotsize_edge)
         self.crcl.pos = imgpos
+        self.crcl.size=(1,1) # TODO: needed in newer versions of psychopy? why?
         self.crcl.draw()
+        #print(f"CIRCLE INFO:\n{self.crcl}")
         return(self.flip_at(onset, self.trialnum, 'dot', ring_type, position))
 
     def get_ready(self, triggers=['equal']):
-        "flip the instruction png, wait for the scanner trigger"
+        "flip the two instruction png, wait for the scanner trigger"
+        self.instructionpng.image = 'images/instruction_1.png'
+        self.instructionpng.draw()
+        self.win.flip()
+        psychopy.event.waitKeys()
+        print("Waiting for scanner")
+        self.instructionpng.image = 'images/instructions.png'
         self.instructionpng.draw()
         self.win.flip()
         psychopy.event.waitKeys(keyList=triggers)
-        
 
     # -- helpers
-
-    def ttl(self):
-        pass
-        # # left to right 1 to 5 from -1 -.5 .5 1 | no 0 (center), never see 3
-        # pos_code = pos*2 + 3
-        # ttl = pos_code + \
-        #     eventTTLlookup.get(event, 0) +\
-        #     100 * int(trialtype == 'rew')
-
     def make_ring(self, text_size=45):
         """ create the ring
         20210518 - use images instead to match eprime experiment
@@ -177,7 +230,7 @@ class DollarReward(LNCDTask):
 
     def read_timing_tr_independent(self, fname):
         """
-        read in timing extracted from eprime1 .es file
+        timing that is not tr locked -- entirely specified by csv
         """
         if not os.path.exists(fname):
             raise Exception(f"cannot find non-tr locked timing file! '{fname}'")
@@ -271,9 +324,14 @@ if __name__ == "__main__":
     n_runs=4
     eyetracker = None
     participant = None
-    run_info = RunDialog(extra_dict={'EyeTracking': ['Arrington','ArringtonSocket', 'None'],
-                                     'fullscreen': True, 'truncated': False},
-                             order=['run_num','subjid', 'timepoint', 'EyeTracking', 'fullscreen'])
+    # 20220825 - mgs task has port as 0xD010. earlier as DDF8
+    #            0xDDF8 == 56824; 0xD010=53264
+    run_info = RunDialog(extra_dict={'EyeTracking': ['EEG', 'Arrington','ArringtonSocket', 'None'],
+                                     'screenhack': False,
+                                     'fullscreen': True,
+                                     'truncated': False,
+                                     'LPTport': "53264"},
+                             order=['run_num','subjid', 'timepoint', 'EyeTracking', 'fullscreen','screenhack', 'LPTport'])
 
     
     # if we specify file(s) as arguments. read as though they're tr independent files
@@ -282,7 +340,9 @@ if __name__ == "__main__":
     # this should/can be set by .bat files
     import sys
     if len(sys.argv)>1:
+        from random import shuffle
         tfiles = sys.argv[1:]
+        shuffle(tfiles)  # rearrange inpace/side-effect
         n_runs = len(sys.argv) - 1
         read_file_func = lambda dr, runnum: dr.read_timing_tr_independent(fname=tfiles[runnum-1])
     else:
@@ -300,7 +360,18 @@ if __name__ == "__main__":
 
         run_num = run_info.run_num()
 
-        win = create_window(run_info.info['fullscreen'])
+        if run_info.info['screenhack']:
+            # pygame (default), pyglet (newer), glfw (experimental)
+            # MR res = [1024,768]
+            # fullscreen doesn't exist. goes into power saving mode
+            win = visual.Window([1024,768])#, winType='pyglet')
+            win.winHandle.activate()  # make sure the display window has focus
+            win.mouseVisible = False  # and that we don't see the mouse
+            win.color = (-1, -1, -1)
+            win.flip()
+            win.flip()
+        else:
+            win = create_window(run_info.info['fullscreen'])
         dr = DollarReward(win=win, externals=[printer])
         dr.gobal_quit_key()  # escape quits
         dr.DEBUG = True
@@ -324,6 +395,10 @@ if __name__ == "__main__":
         elif run_info.info['EyeTracking'] == "ArringtonSocket":
             from arrington_socket import ArringtonSocket
             eyetracker = ArringtonSocket()
+        elif run_info.info['EyeTracking'] == 'EEG':
+            from externalcom import ParallelPortEEG
+            port = int(run_info.info['LPTport'])
+            eyetracker = ParallelPortEEG(port, lookup_func=ttl_wrap, verbose=True)
         else:
             eyetracker = None
 
@@ -339,8 +414,14 @@ if __name__ == "__main__":
         logger.new(participant.log_path(run_id))
         dr.externals.append(logger)
 
+        # how do we  trigger start?
+        # if EEG keyboard should go?
+        triggers = ['equal']
+        if run_info.info['EyeTracking'] in ['EEG']:
+            triggers = None
+
         # RUN
-        dr.get_ready()
+        dr.get_ready(triggers=triggers)
         dr.run(end_wait=1.5)
         dr.onset_df.to_csv(participant.run_path(f"onsets_{run_num:02d}"))
         dr.msg(f"Finished run {run_num}/{n_runs}!")
