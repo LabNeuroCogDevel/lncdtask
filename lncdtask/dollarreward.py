@@ -377,8 +377,14 @@ if __name__ == "__main__":
         logger.new(participant.log_path(run_id))
         dr.externals.append(logger)
 
+        # how do we  trigger start?
+        # if EEG keyboard should go?
+        triggers = ['equal']
+        if run_info.info['EyeTracking'] in ['EEG']:
+            triggers = None
+
         # RUN
-        dr.get_ready()
+        dr.get_ready(triggers=triggers)
         dr.run(end_wait=1.5)
         dr.onset_df.to_csv(participant.run_path(f"onsets_{run_num:02d}"))
         dr.msg(f"Finished run {run_num}/{n_runs}!")
