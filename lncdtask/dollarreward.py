@@ -153,9 +153,9 @@ class DollarReward(LNCDTask):
         # hack to get dot size
         imgpos = replace_img(self.img, None, position, self.dotsize_edge)
         self.crcl.pos = imgpos
-        print(self.crcl.size)
-        print(self.crcl.units)
+        self.crcl.size=(1,1) # TODO: needed in newer versions of psychopy? why?
         self.crcl.draw()
+        #print(f"CIRCLE INFO:\n{self.crcl}")
         return(self.flip_at(onset, self.trialnum, 'dot', ring_type, position))
 
     def get_ready(self, triggers=['equal']):
