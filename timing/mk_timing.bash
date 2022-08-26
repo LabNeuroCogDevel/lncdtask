@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-set -x
 #
 # generate timings for MR task with decaying ITI and catch trials
 #
@@ -46,18 +45,26 @@ TR=1.3
 PREFIX=v1
 
 E_DUR=1.5  # original length of each event
-TOTAL_RUNTIME=510 # 8.5 min
-# with 2s mean iti have 9 secs of start/stop
-#  n<-36; 2*(n*1.5*3 + (n*.3)*3 + (n*.15)*1.5) + (n+n/3)*2
-# [1] 501
+
+#TOTAL_RUNTIME=510 # 8.5 min
+
+                    # includes 9second of start (always 4s) + stop play
+TOTAL_RUNTIME=304.2 #  234 volumes, 5.07 minutes
+
+# single long trial with 2.2s mean iti and 9 secs of start/stop
+#  n<-60; n*3*1.5 + n/3*2*1.5 + n/6*1*1.5 + n*2.45 +9
+# [1] 501  # 8.4 min
+# breaking up to shorter trial
+#  n<-36; n*3*1.5 + n/3*2*1.5 + n/6*1*1.5 + n*2.45 +9
+# [1] 304.2 # 5.07 min # 234 volumes
 
 # how many full trials of reward or neutral
 # total full = 2 * number given
 # total ring = 2*(x+x/3)
-# total prep  = 2*(x+x/6)
-N_EA_TYPE=30
-N_RING_C1=$(printf %.0f $(echo $N_EA_TYPE/3|bc)) # 12
-N_PREP_C2=$(printf %.0f $(echo $N_EA_TYPE/6|bc)) # 6
+# total prep  = 2*(x+x/6)                        # total
+N_EA_TYPE=9  # 18 rew+nue in one run             #18 # 36
+N_RING_C1=$(printf %.0f $(echo $N_EA_TYPE/3|bc)) # 6 # 12
+N_PREP_C2=$(printf %.0f $(echo $N_EA_TYPE/6|bc)) # 3 # 6
 N_FULL=$((2*N_EA_TYPE))
 
 
@@ -112,7 +119,7 @@ mktiming(){
   make_random_timing.py \
      -tr $TR \
      -num_runs 1 -run_time $TOTAL_RUNTIME        \
-     -pre_stim_rest 3 \
+     -pre_stim_rest 4 \
      -rand_post_stim_rest yes             \
      -add_timing_class s_neu_ring  "$E_DUR"  \
      -add_timing_class s_rew_ring  "$E_DUR"  \
@@ -155,7 +162,9 @@ mktiming(){
   add_glt decon.tcsh \
      '.5*neu_ring +.5*rew_ring +.17*neu_ring_c1 +.17*rew_ring_c1 +.08*rew_prep_c2 +.08*neu_prep_c2 -.5*rew_dot -.5*neu_dot' 'ring-dot' \
      '.5*neu_ring +.5*rew_ring +.17*neu_ring_c1 +.17*rew_ring_c1 -.5*neu_prep -.5*rew_prep  -.08*neu_prep_c2 -.08*rew_prep_c2' 'ring-prep' \
-
+     'neu_ring +.25*neu_ring_c1 +.17*neu_ring_c2 -rew_ring -.25*rew_ring_c1 -.17*rew_ring_c2' 'ring_neu-rew' \
+     'neu_prep +.17*neu_ring_c2 -rew_prep -.17*rew_prep_c2' 'prep_neu-rew' \
+# neu_dot-rew_dot_LC already included
 
   tcsh decon.tcsh > decon.log
   parse_decon "${PREFIX}-${TOTAL_RUNTIME}-${N_FULL}-${seed}" < decon.log > stddevtests.tsv
@@ -179,7 +188,6 @@ fi
 # testing with bats. use like
 #   bats ./mk_timing.bash --verbose-run
 ####
-if  [[ "$(caller)" =~ /bats.*/preprocessing.bash ]]; then
 function trialcount_test { #@test
   local total=12
   eval $MACRO_TRIAL_COUNTS
@@ -214,4 +222,3 @@ function add_glt_test { #@test
    grep "SYM: a +b" $f
    grep "\-glt_label 6 a-b" $f
 }
-fi
