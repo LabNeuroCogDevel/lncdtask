@@ -1,6 +1,11 @@
+#!/usr/bin/env Rscript
+
+# collapse stddev tests into single file
+# include event list for limiting catch trial repeats
+# and maybe rew or neu repeats
+# 2022082xWF - init
+
 library(dplyr)
-library(ggplot2)
-library(cowplot)
 library(glue)
 list_rings <- function(f) {
    f <- gsub('stddevtests.tsv','events.txt', f)
@@ -16,13 +21,3 @@ fits <- flist %>%
         error=function(f )NULL)) %>%
    bind_rows
 write.table(file='mr_times.tsv', fits, row.names=F,quote=F)
-theme_set(theme_cowplot())
-
-
-plot_grid(ncol=2,
- ggplot(fits %>% filter(prep_neu.rew_LC<1.5)) +
-    aes(x=ring.prep_LC, y=prep_neu.rew_LC, color=neu_dot.rew_dot_LC) +
-    geom_point() + theme(legend.position="none") + ggtitle('std dev contrast (decon nodata)'),
- ggplot(fits%>% filter(ring.dot_LC<.5)) +
-    aes(x=ring.dot_LC, y=neu_dot.rew_dot_LC, color=neu_dot.rew_dot_LC) +
-    geom_point())

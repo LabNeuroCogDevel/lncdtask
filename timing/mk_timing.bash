@@ -48,7 +48,7 @@ E_DUR=1.5  # original length of each event
 
 #TOTAL_RUNTIME=510 # 8.5 min
 
-                    # includes 9second of start (always 4s) + stop play
+                    # includes 9second of start + stop play  (always 4s) 
 TOTAL_RUNTIME=304.2 #  234 volumes, 5.07 minutes
 
 # single long trial with 2.2s mean iti and 9 secs of start/stop
@@ -62,9 +62,9 @@ TOTAL_RUNTIME=304.2 #  234 volumes, 5.07 minutes
 # total full = 2 * number given
 # total ring = 2*(x+x/3)
 # total prep  = 2*(x+x/6)                        # total
-N_EA_TYPE=9  # 18 rew+nue in one run             #18 # 36
-N_RING_C1=$(printf %.0f $(echo $N_EA_TYPE/3|bc)) # 6 # 12
-N_PREP_C2=$(printf %.0f $(echo $N_EA_TYPE/6|bc)) # 3 # 6
+N_EA_TYPE=16  # 32 rew+nue in one run            #16#18#32#36# 
+N_RING_C1=$(printf %.0f $(echo $N_EA_TYPE/3|bc)) # 5# 6#10#12#
+N_PREP_C2=$(printf %.0f $(echo $N_EA_TYPE/6|bc)) # 2# 3# 4# 6#
 N_FULL=$((2*N_EA_TYPE))
 
 
