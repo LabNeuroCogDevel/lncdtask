@@ -160,10 +160,20 @@ mktiming(){
   # TODO: does prep including full ring distored ring-prep contast sd?
   # TODO: how to contrast prep-dot
   add_glt decon.tcsh \
-     '.5*neu_ring +.5*rew_ring +.17*neu_ring_c1 +.17*rew_ring_c1 +.08*rew_prep_c2 +.08*neu_prep_c2 -.5*rew_dot -.5*neu_dot' 'ring-dot' \
-     '.5*neu_ring +.5*rew_ring +.17*neu_ring_c1 +.17*rew_ring_c1 -.5*neu_prep -.5*rew_prep  -.08*neu_prep_c2 -.08*rew_prep_c2' 'ring-prep' \
+     '.5*neu_ring +.5*rew_ring +.17*neu_ring_c1 +.17*rew_ring_c1 +.08*rew_ring_c2 +.08*neu_ring_c2' 'ring_all' \
+     '.5*neu_prep +.5*rew_prep  +.08*neu_prep_c2 +.08*rew_prep_c2' 'prep_all' \
+     'neu_dot +rew_dot' 'dot_all' \
+     \
+     '.5*neu_ring +.5*rew_ring +.17*neu_ring_c1 +.17*rew_ring_c1 +.08*rew_ring_c2 +.08*neu_ring_c2 -.5*neu_prep -.5*rew_prep  -.08*neu_prep_c2 -.08*rew_prep_c2' 'ring-prep' \
+     '.5*neu_ring +.5*rew_ring +.17*neu_ring_c1 +.17*rew_ring_c1 +.08*rew_ring_c2 +.08*neu_ring_c2 -.5*rew_dot -.5*neu_dot' 'ring-dot' \
+     \
      'neu_ring +.25*neu_ring_c1 +.17*neu_ring_c2 -rew_ring -.25*rew_ring_c1 -.17*rew_ring_c2' 'ring_neu-rew' \
      'neu_prep +.17*neu_ring_c2 -rew_prep -.17*rew_prep_c2' 'prep_neu-rew' \
+     \
+     'neu_ring +.25*neu_ring_c1 +.17*neu_ring_c2' 'ring_nue' \
+     'neu_prep +.17*neu_prep_c2'                  'prep_nue' \
+     'rew_ring +.25*rew_ring_c1 +.17*rew_ring_c2' 'ring_rew' \
+     'rew_prep +.17*rew_prep_c2'                  'prep_rew' \
 # neu_dot-rew_dot_LC already included
 
   tcsh decon.tcsh > decon.log

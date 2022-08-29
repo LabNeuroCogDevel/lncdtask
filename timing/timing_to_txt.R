@@ -10,6 +10,47 @@
 library(dplyr)
 library(tidyr)
 
+mk_reps <- function(vals, len) sample(rep(vals,ceiling(len/length(vals))))[1:len]
+
+max_side <- function(trial_type){
+
+  nrew <- sum(trial_type$ring_type=="rew")
+  nneu <-  sum(trial_type$ring_type=="neu")
+  # make sure we don't repeat a side too often
+  mx_rep <- 99; n_mx <- 99
+  while(mx_rep>3 || n_mx > 3) {
+    trial_type$side[trial_type$ring_type=="rew"] <- mk_reps(c("left","right"), nrew)
+    trial_type$side[trial_type$ring_type=="neu"] <- mk_reps(c("left","right"), nneu)
+    n_reps <- rle(trial_type$side)$lengths
+    mx_rep <- max(n_reps)
+    n_mx <- sum(n_reps==3)
+  }
+  return(trial_type)
+}
+
+max_pos <- function(trial_type, max_pos_diff=1) {
+   # split side into position. also check repeats there
+   # initial version had 4 positions per side but was too tight
+   # three used by newest eprime dollar rewards
+   #  007 108 214 |=center=320=| 426 532 633
+   # but dont need all of those. using 2 per side
+   nrew <- sum(trial_type$ring_type=="rew")
+   nneu <-  sum(trial_type$ring_type=="neu")
+   mx_rep <- 99; n_mx <- 99
+   while(mx_rep>3 || n_mx > 3) {
+       trial_type$position[trial_type$side=="left"] <- mk_reps(c(7, 214), nrew)
+       trial_type$position[trial_type$side=="right"]<- mk_reps(c(426,633), nneu)
+       n_reps <- rle(abs(trial_type$position-640/2)>300)$lengths
+       mx_rep <- max(n_reps)
+       n_mx <- sum(n_reps==3)
+       # also dont want to be too unequal across sides
+       rng <- with(trial_type, split(position,ring_type) %>%
+                   sapply(function(p) diff(range(rle(sort(p))$lengths))))
+       if(max(rng)>max_pos_diff) mx_rep <- 99
+   }
+  return(trial_type)
+}
+
 afni_to_task <- function(fname="out/510s/v1_60_26546/events.txt", total_runtime=510) {
     # parse event.csv from make_random_timing.py and add balenced position
     d <- read.table(fname,skip=3)
@@ -29,7 +70,7 @@ afni_to_task <- function(fname="out/510s/v1_60_26546/events.txt", total_runtime=
         }) %>%
         bind_rows %>%
         select(-rest) %>% 
-        separate(event,c("ring_type","event_name", "catch"),remove=FALSE)
+        separate(event,c("ring_type","event_name", "catch"),remove=FALSE,fill="right")
 
     row.names(d_py)<-NULL
 
@@ -41,30 +82,10 @@ afni_to_task <- function(fname="out/510s/v1_60_26546/events.txt", total_runtime=
     trial_type <- d_py %>% group_by(trial) %>% filter(row_number()==1, is.na(catch)) %>%
         select(trial,ring_type) %>%
         mutate(side=NA, position=NA)
-    mk_reps <- function(vals, len) sample(rep(vals,ceiling(len/length(vals))))[1:len]
 
-    # make sure we don't repeat a side too often
-    mx_rep <- 99; n_mx <- 99
-    while(mx_rep>3 || n_mx > 3) {
-    trial_type$side[trial_type$ring_type=="rew"] <- mk_reps(c("left","right"), sum(trial_type$ring_type=="rew"))
-    trial_type$side[trial_type$ring_type=="neu"] <- mk_reps(c("left","right"), sum(trial_type$ring_type=="neu"))
-    n_reps <- rle(trial_type$side)$lengths
-    mx_rep <- max(n_reps)
-    n_mx <- sum(n_reps==3)
-    }
-    # split side into position. also check repeats there
-    # initial version had 4 positions per side but was too tight
-    # three used by newest eprime dollar rewards
-    #  007 108 214 |=center=320=| 426 532 633
-    # but dont need all of those. using 2 per side
-    mx_rep <- 99; n_mx <- 99
-    while(mx_rep>3 || n_mx > 3) {
-        trial_type$position[trial_type$side=="left"] <- mk_reps(c(7, 214), sum(trial_type$ring_type=="rew"))
-        trial_type$position[trial_type$side=="right"]<- mk_reps(c(426,633), sum(trial_type$ring_type=="neu"))
-        n_reps <- rle(abs(trial_type$position-640/2)>300)$lengths
-        mx_rep <- max(n_reps)
-        n_mx <- sum(n_reps==3)
-    }
+    trial_type <- max_side(trial_type)
+    trial_type <- max_pos(trial_type)
+    # trial_type %>% group_by(ring_type,position) %>% tally -- all 2s and 3s
 
     onset_type <- left_join(d_py, trial_type) %>% select(onset, event_name, ring_type, position) %>%
         mutate(onset=as.numeric(onset))
@@ -94,11 +115,11 @@ collect_timings <- function(stddev_patt="out/*/*/stddevtests.tsv"){
   write.table(d, 'std_dev_tests.tsv', row.names=F)
   return(d)
 }
-save_events <- function(fname) {
+save_events <- function(fname, total_dur) {
     event_fname <- gsub('stddevtests.tsv','events.txt',fname)
-    seed <- stringr::str_extract(fname, '(?<=v1_60_)[0-9]+')
-    outname <- glue::glue("dollar_reward_noTR_{seed}.tsv")
-    onset_pos <- afni_to_task(event_fname)
+    seed <- stringr::str_extract(fname, '(?<=v1_18_)[0-9]+')
+    outname <- glue::glue("dollar_reward_noTR_{total_dur}_{seed}.tsv")
+    onset_pos <- afni_to_task(event_fname, total_dur)
     write.table(onset_pos,file=outname,sep="\t", row.names=F, quote=F)
     return(outname)
 }
@@ -111,4 +132,18 @@ find_best <- function(cols=c("neu_ring-rew_ring_LC", "neu_dot-rew_dot_LC")){
 }
 
 # TODO: determin/set better columns
-find_best(c("neu_ring-rew_ring_LC", "neu_dot-rew_dot_LC")) %>% lapply(save_events)
+#find_best(c("neu_ring-rew_ring_LC", "neu_dot-rew_dot_LC")) %>% lapply(save_events)
+
+# 20220829 - updated for shorter events
+x <- save_events("out/304.2s/v1_18_25802/stddevtests.tsv", 304.2)
+y <- save_events("out/304.2s/v1_18_9980/stddevtests.tsv", 304.2)
+
+top_times <- c("25802", "27385", "27944", "30709", "4342", "9980")
+outputs <- sapply(top_times,function(x)
+                  save_events(glue::glue("out/304.2s/v1_18_{x}/stddevtests.tsv"), 304.2))
+
+lapply(outputs, function(x) {
+ x <- read.table(x,header=T)
+ list(pos=x %>% filter(event_name=='dot') %>% group_by(ring_type,position) %>% tally,
+      rew=x %>% filter(event_name=='dot') %>% group_by(ring_type) %>% tally)})
+
