@@ -10,3 +10,6 @@ mr_times.tsv:
 # seed top made at same time as mr_ranked.tsv
 # tracking depend here
 seeds_top_6.txt: mr_ranked.tsv
+
+dollarreward/304.2_trial_order_onsets.txt: seeds_top_6.txt
+	./merge_times.bash > $@

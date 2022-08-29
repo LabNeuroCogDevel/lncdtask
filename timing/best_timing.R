@@ -42,6 +42,4 @@ write.table(d_tot,"mr_ranked.tsv", quote=F,row.names=F)
 sink("seeds_top_6.txt")
 d_tot %>% filter(r <= 6 ) %>% `[[`("name") %>% gsub('.*-','',.) %>% paste(sep=" ",collapse=" ") %>% cat
 sink()
-# ontime() { grep -Po '(neu|rew)_ring.*?[0-9] ' out/304.2s/v1_18_$1/events.txt; }
-# paste <(ontime 25802) <(ontime 9980) | sed s/\)//g
 
