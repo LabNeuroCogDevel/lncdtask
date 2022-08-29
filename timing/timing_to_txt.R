@@ -51,23 +51,29 @@ max_pos <- function(trial_type, max_pos_diff=1) {
   return(trial_type)
 }
 
+add_rest<-function(d){
+   #cols: rest onset trial rest
+   iti<-last(d$rest)
+   new_row <- data.frame(event="iti_iti",
+                         onset=last(d$onset)+last(d$dur),
+                         dur=iti,
+                         rest=0,
+                         trial=last(d$trial))
+   rbind(d, new_row) %>%
+      mutate(trial_type=first(event))
+}
+
 afni_to_task <- function(fname="out/510s/v1_60_26546/events.txt", total_runtime=510) {
     # parse event.csv from make_random_timing.py and add balenced position
     d <- read.table(fname,skip=3)
-    names(d) <- c("n","event","onset","dur","rest")
+    names(d) <- c("n","event","onset","dur","rest") # rest is time between events
     d <- d %>% mutate(event=gsub("\\(|\\)","",event),
                 rest=as.numeric(rest),
                 trial = 1 + cumsum(lag(rest, default=0)!=0)) %>% select(-n)
 
     d_py <- d %>%
         split(d$trial) %>%
-        lapply(function(d){
-          iti<-last(d$rest)
-          #              event      onset          dur rest trial
-          new_row <- c("iti_iti",last(d$onset)+iti,iti, 0, last(d$trial))
-          rbind(d, new_row) %>%
-            mutate(trial_type=first(event))
-        }) %>%
+        lapply(add_rest) %>%
         bind_rows %>%
         select(-rest) %>% 
         separate(event,c("ring_type","event_name", "catch"),remove=FALSE,fill="right")
@@ -106,7 +112,7 @@ afni_to_task <- function(fname="out/510s/v1_60_26546/events.txt", total_runtime=
 
 collect_timings <- function(stddev_patt="out/*/*/stddevtests.tsv"){
   # takes a loonnnng time on remote filesystem
-  collected_fname <- 'std_dev_test.tsv'
+  collected_fname <- 'std_dev_tests.tsv'
   if(file.exists(collected_fname))
       return(read.table(collected_name,header=T,sep="\t"))
 
@@ -124,26 +130,33 @@ save_events <- function(fname, total_dur) {
     return(outname)
 }
 find_best <- function(cols=c("neu_ring-rew_ring_LC", "neu_dot-rew_dot_LC")){
-    stddevs <- collect_timings('/Volumes/Hera/Projects/lncdtask/timing/out/*/v*/stddevtest.tsv')
+    stddevs <- collect_timings('/Volumes/Hera/Projects/lncdtask/timing/out/*/v*/stddevtests.tsv')
     cols <- cols %>% gsub('-','.',.)
     rank_i <- order(apply(stddevs[,cols],1,sum))
     stddevs[head(rank_i),c("fname",cols)] %>% print
     return(stddevs[rank_i[1:4],'fname'])
 }
 
-# TODO: determin/set better columns
+# previously using less relevant columns
 #find_best(c("neu_ring-rew_ring_LC", "neu_dot-rew_dot_LC")) %>% lapply(save_events)
 
 # 20220829 - updated for shorter events
-x <- save_events("out/304.2s/v1_18_25802/stddevtests.tsv", 304.2)
-y <- save_events("out/304.2s/v1_18_9980/stddevtests.tsv", 304.2)
-
-top_times <- c("25802", "27385", "27944", "30709", "4342", "9980")
-outputs <- sapply(top_times,function(x)
-                  save_events(glue::glue("out/304.2s/v1_18_{x}/stddevtests.tsv"), 304.2))
+#top_times <- unlist(read.table(file='seeds_top_6.txt',sep=" ",header=F))
+mr_times <- read.table('mr_ranked.tsv',header=T) %>%
+   filter(r<=6) %>%
+   tidyr::separate(name,c('ver','rdur','tcnt','seed'),sep="-") %>%
+   mutate(fname=glue::glue("out/{rdur}s/{ver}_{tcnt}_{seed}/stddevtests.tsv"))
+outputs <- sapply(mr_times$fname, save_events, 304.2)
 
 lapply(outputs, function(x) {
  x <- read.table(x,header=T)
  list(pos=x %>% filter(event_name=='dot') %>% group_by(ring_type,position) %>% tally,
       rew=x %>% filter(event_name=='dot') %>% group_by(ring_type) %>% tally)})
 
+
+
+
+test_add_rest <- function(){
+   x<- add_rest(data.frame(event="dot",onset=1,rest=3,trial=1,dur=1.5))
+   testthat::expect_equal(last(x$onset), 2.5)
+}
