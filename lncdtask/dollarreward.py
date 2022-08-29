@@ -339,13 +339,26 @@ if __name__ == "__main__":
     # otherwise use ../dollar_reward_events.txt (old, from original eprime version)
     # this should/can be set by .bat files
     import sys
-    if len(sys.argv)>1:
+    if len(sys.argv) > 1:
+        import argparse
+        parser = argparse.ArgumentParser(description='Run dollar rewards task')
+        parser.add_argument('--nruns', nargs=1, default=None, help='how many runs. default to all given')
+        parser.add_argument('timing_files', type=str, nargs='+',
+                            help='files to randomly shuffle for run timing')
+        parsed = parser.parse_args(sys.argv)
+
+        tfiles = parsed.timing_files
+        if parsed.nruns:
+            n_runs = parsed.nruns
+        else:
+            n_runs = len(tfiles)
+
         from random import shuffle
-        tfiles = sys.argv[1:]
         shuffle(tfiles)  # rearrange inpace/side-effect
-        n_runs = len(sys.argv) - 1
+
         read_file_func = lambda dr, runnum: dr.read_timing_tr_independent(fname=tfiles[runnum-1])
     else:
+        # TODO: can we make timing_files default to this?
         read_file_func = lambda dr, runnum: dr.read_timing(runnum, fname="dollar_reward_events.txt")
 
     # open a dialog and then a psychopy window for each run
