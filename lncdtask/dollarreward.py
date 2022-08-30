@@ -240,7 +240,6 @@ class DollarReward(LNCDTask):
         df['position'] = eppos2relpos(df.position, 640)
         return df
 
-
     def generate_timing(n=40, dur=1.5, n_catch1=6, n_catch2=6):
         """
         generate timing with catches for rew and neutral
@@ -316,56 +315,79 @@ class DollarReward(LNCDTask):
 
 
 if __name__ == "__main__":
-    from lncdtask import ExternalCom, FileLogger, Participant, RunDialog
+    import sys
+    import argparse
     from time import time
+    from lncdtask import ExternalCom, FileLogger, Participant, RunDialog
     printer = ExternalCom()
     logger = FileLogger()
 
-    n_runs=4
-    eyetracker = None
-    participant = None
-    # 20220825 - mgs task has port as 0xD010. earlier as DDF8
-    #            0xDDF8 == 56824; 0xD010=53264
-    run_info = RunDialog(extra_dict={'EyeTracking': ['EEG', 'Arrington','ArringtonSocket', 'None'],
-                                     'screenhack': False,
-                                     'fullscreen': True,
-                                     'truncated': False,
-                                     'LPTport': "53264"},
-                             order=['run_num','subjid', 'timepoint', 'EyeTracking', 'fullscreen','screenhack', 'LPTport'])
-
-    
     # if we specify file(s) as arguments. read as though they're tr independent files
     # see [[file:../timing/timing_to_txt.R::afni_to_task]]
     # otherwise use ../dollar_reward_events.txt (old, from original eprime version)
     # this should/can be set by .bat files
-    import sys
-    if len(sys.argv) > 1:
-        import argparse
-        parser = argparse.ArgumentParser(description='Run dollar rewards task')
-        parser.add_argument('timing_files',
-                            type=str, nargs='+', default=[],
-                            help='files to randomly shuffle for run timing')
-        parser.add_argument('--nruns', nargs=1, type=int, default=None,
-                            help='how many runs. default to all given')
-        parsed = parser.parse_args()
-        print(parsed)
+    parser = argparse.ArgumentParser(description='Run dollar rewards task')
+    parser.add_argument('timing_files',
+                        type=str, nargs='+', default=["dollar_reward_events.txt"],
+                        help='files to randomly shuffle for run timing')
+    parser.add_argument('--where', #nargs=1,
+                        choices=["eeg", "mr", "testing"],
+                        default="mr",
+                        help='where the experiment is run (different default settings)')
+    parser.add_argument('--nruns', nargs=1, type=int, default=None,
+                        help='how many runs. default to all given')
+    parsed = parser.parse_args()
+    print(parsed)
 
-        tfiles = parsed.timing_files
-        if len(tfiles) < 1:
-            raise Exception("need timing files!")
-        if parsed.nruns:
-            n_runs = int(parsed.nruns[0])
-        else:
-            n_runs = len(tfiles)
-
-        from random import shuffle
-        shuffle(tfiles)  # rearrange inpace/side-effect
-
-        read_file_func = lambda dr, runnum: dr.read_timing_tr_independent(fname=tfiles[runnum-1])
+    # specified timing files can set the number of trials
+    # but we can also restrict by nruns
+    tfiles = parsed.timing_files
+    if len(tfiles) < 1:
+        raise Exception("need timing files!")
+    if parsed.nruns:
+        n_runs = int(parsed.nruns[0])
+        if n_runs > len(tfiles):
+            raise Exception("too few run files for nruns specified. repeat timing_files for more runs")
     else:
-        # TODO: can we make timing_files default to this?
-        # uses a different function to read in :(
+        n_runs = len(tfiles)
+
+    from random import shuffle
+    shuffle(tfiles)  # rearrange inpace/side-effect
+
+    # original timing (from eprime) is formated differently
+    # set reading function based on timing file input
+    read_file_func = lambda dr, runnum: dr.read_timing_tr_independent(fname=tfiles[runnum-1])
+    if tfiles[0] == "dollar_reward_events.txt":
         read_file_func = lambda dr, runnum: dr.read_timing(runnum, fname="dollar_reward_events.txt")
+
+    # default settings change based on where we are
+    # 1) screenhack for mr b/c something funny with win7+psychopy (gamma?) at MRRC
+    # 2) only need '=' trigger for MR (scanner triggers task start)
+    #    in eeg task triggers recording
+    default_screenhack = False
+    triggers = None
+    if parsed.where == 'eeg':
+        eye_choices = ['EEG', 'Arrington', 'ArringtonSocket', 'None']
+    elif parsed.where == 'mr':
+        eye_choices = ['Arrington', 'ArringtonSocket', 'None', 'EEG']
+        default_screenhack = True
+        triggers = ['equal']
+    else:
+        eye_choices = ['None', 'Arrington', 'ArringtonSocket', 'None']
+
+    participant = None
+    # 20220825 - mgs task has port as 0xD010. earlier as DDF8
+    #            0xDDF8 == 56824; 0xD010=53264
+    run_info = RunDialog(extra_dict={'EyeTracking': eye_choices,
+                                     'screenhack': default_screenhack,
+                                     'fullscreen': True,
+                                     'truncated': False,
+                                     'LPTport': "53264"},
+                         order=['subjid', 'run_num', 'timepoint',
+                                'EyeTracking', 'fullscreen', 'screenhack',
+                                'LPTport'])
+
+    
 
     # open a dialog and then a psychopy window for each run
     while run_info.run_num() <= n_runs:
@@ -383,7 +405,7 @@ if __name__ == "__main__":
             # pygame (default), pyglet (newer), glfw (experimental)
             # MR res = [1024,768]
             # fullscreen doesn't exist. goes into power saving mode
-            win = visual.Window([1024,768])#, winType='pyglet')
+            win = visual.Window([1024, 768])#, winType='pyglet')
             win.winHandle.activate()  # make sure the display window has focus
             win.mouseVisible = False  # and that we don't see the mouse
             win.color = (-1, -1, -1)
@@ -433,11 +455,6 @@ if __name__ == "__main__":
         logger.new(participant.log_path(run_id))
         dr.externals.append(logger)
 
-        # how do we  trigger start?
-        # if EEG keyboard should go?
-        triggers = ['equal']
-        if run_info.info['EyeTracking'] in ['EEG']:
-            triggers = None
 
         # RUN
         dr.get_ready(triggers=triggers)
