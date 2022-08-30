@@ -123,7 +123,7 @@ collect_timings <- function(stddev_patt="out/*/*/stddevtests.tsv"){
 }
 save_events <- function(fname, total_dur) {
     event_fname <- gsub('stddevtests.tsv','events.txt',fname)
-    seed <- stringr::str_extract(fname, '(?<=v1_18_)[0-9]+')
+    seed <- stringr::str_extract(fname, '(?<=v1_32_)[0-9]+')
     outname <- glue::glue("dollar_reward_noTR_{total_dur}_{seed}.tsv")
     onset_pos <- afni_to_task(event_fname, total_dur)
     write.table(onset_pos,file=outname,sep="\t", row.names=F, quote=F)
@@ -146,7 +146,7 @@ mr_times <- read.table('mr_ranked.tsv',header=T) %>%
    filter(r<=6) %>%
    tidyr::separate(name,c('ver','rdur','tcnt','seed'),sep="-") %>%
    mutate(fname=glue::glue("out/{rdur}s/{ver}_{tcnt}_{seed}/stddevtests.tsv"))
-outputs <- sapply(mr_times$fname, save_events, 304.2)
+outputs <- sapply(mr_times$fname, save_events, total_dur=304.2)
 
 lapply(outputs, function(x) {
  x <- read.table(x,header=T)
