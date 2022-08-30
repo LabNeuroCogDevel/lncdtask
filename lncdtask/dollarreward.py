@@ -118,8 +118,8 @@ class DollarReward(LNCDTask):
         self.trialnum = 0
         
         self.ringpng = {
-            'neu': visual.ImageStim(self.win, name="ringnue", interpolate=True, image='images/dollarRing.png'),
-            'rew': visual.ImageStim(self.win, name="ringrew", interpolate=True, image='images/neutralRing.png')
+            'rew': visual.ImageStim(self.win, name="ringrew", interpolate=True, image='images/dollarRing.png'),
+            'neu': visual.ImageStim(self.win, name="ringneu", interpolate=True, image='images/neutralRing.png')
         }
 
         self.instructionpng = visual.ImageStim(self.win, name="instruct", interpolate=True, image='images/instructions.png')
