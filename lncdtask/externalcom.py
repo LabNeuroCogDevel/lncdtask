@@ -97,7 +97,7 @@ class Arrington(ExternalCom):
     def new(self, fname):
         self.runEyeName = fname.replace(".txt", "")
         self.vpxsend('dataFile_Pause 1')
-        self.vpxsend('dataFile_NewName "%s"' % fname)
+        self.vpxsend('dataFile_NewName "%s.txt"' % fname)
         if self.verbose:
             print("tried to open eyetracking file %s" % fname)
             self.vpxsend('say "newfile %s"' % fname)
