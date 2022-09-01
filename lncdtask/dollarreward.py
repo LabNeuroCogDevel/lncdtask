@@ -138,7 +138,7 @@ class DollarReward(LNCDTask):
         self.ringpng[ring_type].draw()
         self.cue_fix.color = 'white'
         self.cue_fix.draw()
-        return(self.flip_at(onset, self.trialnum, 'ring', 'rew', position))
+        return(self.flip_at(onset, self.trialnum, 'ring', ring_type, position))
 
     def prep(self, onset, ring_type=None, position=None):
         """cue before onset"""
