@@ -359,6 +359,7 @@ if __name__ == "__main__":
     read_file_func = lambda dr, runnum: dr.read_timing_tr_independent(fname=tfiles[runnum-1])
     if tfiles[0] == "dollar_reward_events.txt":
         read_file_func = lambda dr, runnum: dr.read_timing(runnum, fname="dollar_reward_events.txt")
+        n_runs = 4
 
     # default settings change based on where we are
     # 1) screenhack for mr b/c something funny with win7+psychopy (gamma?) at MRRC
