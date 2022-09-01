@@ -13,6 +13,7 @@ import psychopy
 # see ../desktop_run_dollarreward.bat
 # VPXDLL=r"C:/Windows/System32/VPX_InterApp_64.dll"
 
+
 def eppos2relpos(x, orig_width=800):
     """convert from old eprime value 0-600 to -1 to 1
     >>> eppos2relpos(0)
@@ -26,6 +27,35 @@ def eppos2relpos(x, orig_width=800):
     return (x-half_width)/half_width
 
 
+def read_timing(run_num, fname="dollar_reward_events.txt", n_start_iti=3, tr=1.5):
+    """
+    read in timing extracted from eprime1 .es file
+    """
+    if not os.path.exists(fname):
+        raise Exception(f"cannot find eprime timing file! '{fname}'")
+    print(fname)
+    ep_df = pd.read_csv(fname,sep="\t", header=None)
+    ep_df.columns=["run","epevent","position640", "ring_type","event_name"]
+    ep_df['position'] = eppos2relpos(ep_df.position640, 640)
+    ep_df = ep_df[ep_df.run==run_num].reset_index()
+    start_fix = pd.DataFrame({'event_name':['iti']*n_start_iti})
+    onset_df = pd.concat([start_fix, ep_df])
+    onset_df['onset'] = [x*tr for x in range(len(onset_df))]
+    return onset_df
+
+
+def read_timing_tr_independent(fname):
+    """
+    timing that is not tr locked -- entirely specified by csv
+    """
+    if not os.path.exists(fname):
+        raise Exception(f"cannot find non-tr locked timing file! '{fname}'")
+    print(fname)
+    df = pd.read_csv(fname, sep="\t")
+    print(df)
+    df['position'] = eppos2relpos(df.position, 640)
+    return df
+
 def ttl_wrap(code):
     """
     might int input: start and stop codes from library
@@ -35,7 +65,7 @@ def ttl_wrap(code):
     if type(code) == str:
         einfo = code.split(' ')
         code = ttl(*einfo)
-        print(f"code: {code} from {einfo}")
+        #print(f"code: {code} from {einfo}")
     return code
 
 def ttl(trial, event=None, rew=None, pos=None):
@@ -212,34 +242,6 @@ class DollarReward(LNCDTask):
                 elementMask=None,
                 elementTex=buff.image)
     
-    def read_timing(self,run_num, fname="dollar_reward_events.txt", n_start_iti=3, tr=1.5):
-        """
-        read in timing extracted from eprime1 .es file
-        """
-        if not os.path.exists(fname):
-            raise Exception(f"cannot find eprime timing file! '{fname}'")
-        print(fname)
-        ep_df = pd.read_csv(fname,sep="\t", header=None)
-        ep_df.columns=["run","epevent","position640", "ring_type","event_name"]
-        ep_df['position'] = eppos2relpos(ep_df.position640, 640)
-        ep_df = ep_df[ep_df.run==run_num].reset_index()
-        start_fix = pd.DataFrame({'event_name':['iti']*n_start_iti})
-        onset_df = pd.concat([start_fix, ep_df])
-        onset_df['onset'] = [x*tr for x in range(len(onset_df))]
-        return onset_df
-
-    def read_timing_tr_independent(self, fname):
-        """
-        timing that is not tr locked -- entirely specified by csv
-        """
-        if not os.path.exists(fname):
-            raise Exception(f"cannot find non-tr locked timing file! '{fname}'")
-        print(fname)
-        df = pd.read_csv(fname, sep="\t")
-        print(df)
-        df['position'] = eppos2relpos(df.position, 640)
-        return df
-
     def generate_timing(n=40, dur=1.5, n_catch1=6, n_catch2=6):
         """
         generate timing with catches for rew and neutral
@@ -356,10 +358,10 @@ if __name__ == "__main__":
 
     # original timing (from eprime) is formated differently
     # set reading function based on timing file input
-    read_file_func = lambda dr, runnum: dr.read_timing_tr_independent(fname=tfiles[runnum-1])
+    read_file_func = lambda runnum: read_timing_tr_independent(fname=tfiles[runnum-1])
     if tfiles[0] == "dollar_reward_events.txt":
-        read_file_func = lambda dr, runnum: dr.read_timing(runnum, fname="dollar_reward_events.txt")
         n_runs = 4
+        read_file_func = lambda runnum: read_timing(runnum, fname="dollar_reward_events.txt")
 
     # default settings change based on where we are
     # 1) screenhack for mr b/c something funny with win7+psychopy (gamma?) at MRRC
@@ -420,7 +422,7 @@ if __name__ == "__main__":
 
         # read_file_func goes through specified files
         # or defaults to original eprime task list
-        onset_df = read_file_func(dr, run_num)
+        onset_df = read_file_func(run_num)
 
         if run_info.info['truncated']:
             onset_df = onset_df[0:5]
