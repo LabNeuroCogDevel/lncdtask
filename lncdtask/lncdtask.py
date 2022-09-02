@@ -98,10 +98,12 @@ class LNCDTask():
 
         # to be set
         self.events = {}      # dictionary of event=>EventRunners
-        self.resutls = [{}]   # list of dict per event
+        self.results = [{}]   # list of dict per event
         if onset_df is not None:
             self.set_onsets(onset_df)
-            
+        else:
+            print("WARNING: lncdtask: missing onset_df. timing unmanaged")
+
         self.DEBUG = False
 
     def gobal_quit_key(self, key='escape'):
