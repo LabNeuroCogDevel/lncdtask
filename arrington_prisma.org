@@ -1,0 +1,273 @@
+#+TITLE: Arrington/Avotech @ MRRC Prisma 2
+
+#+begin_src R :session :export none :results none
+library(ggplot)
+pdir <- getwd()
+# https://github.com/LabNeuroCogDevel/autoeyescore
+setwd("/mnt/hdd/home/foranw/src/work/autoeyescore")
+source("score_arrington.R")
+setwd(pdir)
+#+end_src
+
+* Testing with eye calibration tasks
+
+We ran an [[https://github.com/LabNeuroCogDevel/lncdtask/blob/main/lncdtask/eyecal.py][eye calibration task]] first with the 32 channel head coil (once). Then with the 64 (three times).
+
+
+The second 64 channel collection had the mirror tilled such that the projected screen was especially low in the field of view ("low"). The third 64 run was with the screen reflecting on the top of the mirror ("high").
+
+#+begin_src bash
+echo "time(PM) filename"
+perl -MFile::Basename=basename -lne 'if(m/TimeStamp.*?([0-9:]+) PM/){$t=$1; print $t, " ", (basename($ARGV) =~ s/sub-will|_.*//gr)}' ~/scratch/sub-will*|sort
+#+end_src
+
+#+RESULTS:
+| time(PM) | filename           |
+|  3:34:07 | 32test             |
+|  3:53:29 | 64test             |
+|  4:04:21 | 64screentest-low   |
+|  4:07:29 | 64screen2test-high |
+ 
+The task is a visually guided saccade/fixation calibration run configured so a yellow circle ("dot") appears for 2s. The small dot is positioned on the horizontal meridian from 90% left of the screen edge to 90% right excluding 20% on either side of center. A 2 second center fixation cross ("iti") is between each dot.
+
+There should have been 10 dot events with positions evenly distributed (2s dot + 2s iti * 10 == 40s total), but the last trial was never presented. (The last screen flipped w/o a wait, so the program ended early.)
+
+#+begin_src R :session :colnames yes
+eyetxts <- Sys.glob("~/scratch/sub-will*.txt")
+tracking_list <- lapply(eyetxts, \(f) read_arr(f) %>%
+        # msg is 'iti' or like '1 dot .9'
+        separate(msg,c("trial","event","pos"),sep=" ") %>%
+        mutate(event=ifelse(is.na(event), 'iti',event),
+               trial=as.numeric(trial),
+               pos=round(as.numeric(pos),2),
+               # include where data comes from
+               fname=gsub('.*/sub-will|_.*','',f)) %>%
+        fill(trial, pos, .direction="up") %>%
+        group_by(trial) %>%
+        mutate(t=TotalTime-first(TotalTime)))
+
+tracking_list %>%
+  lapply(\(x) x%>%group_by(fname) %>%
+        summarise(trials=max(trial,na.rm=T), time=max(TotalTime), samples=n()))%>%
+  bind_rows
+#+end_src
+
+#+RESULTS:
+| fname              | trials |    time | samples |
+|--------------------+--------+---------+---------|
+| 32test             |      9 | 37.8196 |    2265 |
+| 64screen2test-high |      9 | 37.8697 |    2267 |
+| 64screentest-low   |      9 |  37.903 |    2262 |
+| 64test             |      9 |  37.903 |    2273 |
+
+
+* Quality
+
+** Time series traces
+There were two especially bad runs. With the 32 channel coil arrington's software could not get a stable pupil lock. In the "low" version of 64 channel coil run, the pupil tracking was less noisy but also frequent periods of no tracking.
+
+#+begin_src R :session :eval never :results none :export none
+# many plots into grid. prefer facet_wrap version
+plots <- lapply(tracking_list,
+   \(d) ggplot(d %>% filter(!is.na(trial)) +
+   aes(x=t, y=X_CorrectedGaze, color=event) +
+   geom_point() +
+   facet_wrap(~pos) +
+   theme(legend.position='none')+
+   ggtitle(d$fname[1]))
+do.call(cowplot::plot_grid, plots)
+#+end_src
+
+#+begin_src R :session  :results graphics file :file images/notes/arrington_et.png :width 800
+
+d_all <- tracking_list %>% bind_rows %>% filter(!is.na(trial))
+d_median <- d_all %>%
+  group_by(fname,trial,event,pos) %>%
+  summarise(x_median=median(X_CorrectedGaze,na.rm=T))
+
+raw_plot <- ggplot(d_all) +
+   aes(x=t, y=X_CorrectedGaze, color=event) +
+   geom_point(size=.5) +
+   facet_grid(fname~pos) +
+   geom_hline(data=d_median,aes(yintercept=x_median, linetype=event)) +
+   lims(y=c(-1.5,1.5),x=c(1,4)) +
+   cowplot::theme_cowplot() +
+   labs(y="eye x pos (corrected)", x="time (s)",
+        title="[VGS] Per trial-position horz. eye time series; median event lines")
+print(raw_plot)
+#+end_src
+
+#+RESULTS:
+[[file:images/notes/arrington_et.png]]
+
+** dot distance from iti
+Surprisingly, even the noisy 32 channel coil's median fixation can correctly identify at least the side of the dot during fixation.
+
+#+begin_src R :session :file images/notes/arrington_et_medians.png :results graphics file
+med_vals <- d_median %>%
+  spread(event,x_median) %>%
+  mutate(dist=iti-dot) %>%
+  rbind(data.frame(
+      fname='ideal', pos=c(-.9,.9),
+      dist=c(.5-.05, .5-.95))) %>%
+  mutate(type=case_when(
+           grepl('64',fname)~ '64 channel coil', 
+           grepl('32',fname)~ '32 channel coil', 
+           grepl('ideal',fname)~ 'ideal',
+           TRUE ~ 'oops'))
+
+ggplot(med_vals) +
+  aes(x=pos, y=dist, color=fname, linetype=type) +
+  geom_hline(yintercept=0, alpha=.5) +
+  geom_point() +
+  geom_line(aes(group=fname)) +
+  scale_linetype_manual(values=c(5,3,1)) +
+  cowplot::theme_cowplot() +
+  labs(x="presented dot's horz. position (-1 left, 1 right)",
+       y="median center fix (iti) - median dot fix",
+       linetype="head coil",
+       color="data from",
+       title="horz gaze side discrimination")
+#+end_src
+
+#+RESULTS:
+[[file:images/notes/arrington_et_medians.png]]
+
+** Noise
+#+begin_src R :session :results graphics file :file images/notes/arrington_boxplot.png :width 800
+d_in1sec <- d_median %>%
+  inner_join(d_all) %>% group_by(fname, pos, trial, event) %>%
+  mutate(event_t=TotalTime - first(TotalTime)) %>%
+  filter(event_t>1)# %>%
+
+base_box <- function(d) ggplot(d) +
+  aes(y=X_CorrectedGaze-x_median, fill=fname) +
+  geom_boxplot() +
+  cowplot::theme_cowplot() +
+  scale_x_discrete(labels = NULL, breaks = NULL) +
+  labs(y="diff from median. 1s after onset", fill="data from")
+
+cowplot::plot_grid(
+  d_in1sec %>% filter(event=='dot') %>% base_box +
+   facet_grid(.~pos) + theme(legend.position="none") +
+   labs(y="", title="eye tracking quality: range around median fixation point"),
+  base_box(d_in1sec) + facet_grid(.~event),
+  nrow=2)
+
+#+end_src
+
+#+RESULTS:
+[[file:images/notes/arrington_boxplot.png]]
+
+
+
+* Previously collected data
+
+
+
+#+begin_src R :session :exports none :results none
+library(ggplot2)
+library(cowplot)
+library(gghalves)
+library(ggbeeswarm)
+theme_set(theme_cowplot())
+
+read_dr <- function(f) 
+ read_arr(f) %>%
+  separate(msg,c("trial","event","rew","pos"),sep=" ") %>%
+  mutate(fname=gsub('sub-|ses-|run-|task-DR_|.txt','',basename(f)),
+         across(c(trial, pos),as.numeric),
+         event=ifelse(is.na(event),"iti",event),
+         isfix= event!="dot") %>%
+  group_by(fname) %>%
+  fill(trial,rew,pos, .direction="up") %>%
+  group_by(fname, trial) %>% mutate(t=TotalTime-first(TotalTime))
+
+mkmed <- function(dr) dr %>%
+  group_by(fname, trial, pos, rew, isfix) %>%
+  summarise(x_med=median(X_CorrectedGaze,na.rm=T))
+
+mkpos <- function(dr) dr %>%
+  filter(!isfix) %>%
+  group_by(fname,trial,pos) %>%
+  summarise(side=-1*sign(first(pos)))
+
+plot_raw <- function(dr) {
+  dr_med <- mkmed(dr)
+  mkmed_sub <- function(d) dr_med[dr_med$trial %in% d$trial,]
+  pdata <- dr %>% filter(event %in% c("cue","dot"), abs(pos)>.5) %>%
+    group_by(trial) %>% mutate(t=t-first(t))
+
+  ggplot(pdata) +
+    aes(y=X_CorrectedGaze, x=t, color=event) +
+    geom_point(size=.5) +
+    geom_hline(data=mkmed_sub,aes(yintercept=x_med,color=NULL, linetype=isfix)) +
+    geom_hline(data=mkpos,aes(yintercept=side,color=NULL),color='blue', alpha=.3) +
+    facet_wrap(~paste(round(pos,2), trial))
+    #lims(y=c(-1.5,1.5))
+}
+
+plot_medians <- function(dr) {
+  mkmed(dr) %>%
+     mutate(isfix=ifelse(isfix,'fix','dot')) %>%
+     spread(isfix, x_med) %>% filter(!is.na(dot)) %>%
+  ggplot() +
+    aes(y=fix-dot, x=pos, group=pos,color=rew) +
+    #geom_boxplot(aes(group=pos)) +
+    #see::geom_violindot(fill_dots = "black", aes(group=pos)) +
+    geom_boxplot(side='l',color='black')+
+    geom_jitter(width=.05, height=0, aes(color=rew),alpha=.7) +
+    geom_hline(yintercept=0, color='red',alpha=.3) +
+    theme(legend.position = 'bottom')
+}
+plot_overview <- function(dr) {
+    raw <- plot_raw(dr) +
+      theme(legend.position="bottom", legend.box = "horizontal")+
+      ggtitle(dr$fname[1])
+
+    box <- plot_medians(dr)
+    plot_grid(raw, box, ncol=2, rel_widths = c(5, 2))
+}
+txtfiles <- Sys.glob('/Volumes/L/bea_res/Data/Tasks/DollarReward2/MR/1*_2*/sub*_task-DR_run-*')
+dr_list <- lapply(txtfiles, read_dr)
+#+end_src
+
+#+RESULTS:
+
+#+begin_src R :session
+LNCDR::ld8from(txtfiles)
+#+end_src
+
+#+RESULTS:
+| 11878_20220823 |
+| 11880_20220901 |
+| 11880_20220901 |
+
+** Okay !?
+11878 was a single 8 min run with bad tracking.
+
+
+#+begin_src R :session :results graphics file :file images/notes/DR_raw.png
+plot_overview(dr_list[[1]])
+#+end_src
+
+#+RESULTS:
+[[file:images/notes/DR_raw.png]]
+
+
+** Too noisy
+11880 has noisy data. Small head with coil center obstructing eye. Participant might have also ignored all neutral trials. complicating averaging.
+
+#+begin_src R :session :results graphics file :file images/notes/DR_raw2.png
+plot_overview(dr_list[[2]])
+#+end_src
+#+RESULTS:
+[[file:images/notes/DR_raw2.png]]
+
+
+#+begin_src R :session :results graphics file :file images/notes/DR_raw3.png
+plot_overview(dr_list[[3]])
+#+end_src
+
+#+RESULTS:
+[[file:images/notes/DR_raw3.png]]
