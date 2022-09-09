@@ -1,7 +1,13 @@
 try:
-    from lncdtask import LNCDTask, create_window, replace_img, wait_for_scanner
-except ImportError:
-    from lncdtask.lncdtask import LNCDTask, create_window, replace_img, wait_for_scanner
+    from lncdtask import LNCDTask, create_window, replace_img, wait_for_scanner,\
+        ExternalCom, FileLogger, Participant, RunDialog,\
+        wait_until, shuf_for_ntrials
+except ImportError as e:
+    print(e)
+    from lncdtask.lncdtask import LNCDTask, create_window, replace_img, wait_for_scanner,\
+        ExternalCom, FileLogger, Participant, RunDialog, \
+        wait_until, shuf_for_ntrials
+
 from psychopy import misc, visual
 import numpy as np
 import pandas as pd
@@ -247,7 +253,6 @@ class DollarReward(LNCDTask):
         generate timing with catches for rew and neutral
         not implemented, unfinished
         """
-        from lncdtask import shuf_for_ntrials
         n_catch = n_catch1 + n_catch2 # 12
         n_full = n - n_catch          # 28
         rew_type    = ['rew','neu']
@@ -295,7 +300,6 @@ class DollarReward(LNCDTask):
        # exercise functions
 
        from psychopy import core
-       from lncdtask import wait_until
        t = core.getTime()
        #self.DEBUG = True
 
@@ -316,18 +320,8 @@ class DollarReward(LNCDTask):
        self.run(t+3)
 
 
-if __name__ == "__main__":
-    import sys
+def parse_args(argv):
     import argparse
-    from time import time
-    from lncdtask import ExternalCom, FileLogger, Participant, RunDialog
-    printer = ExternalCom()
-    logger = FileLogger()
-
-    # if we specify file(s) as arguments. read as though they're tr independent files
-    # see [[file:../timing/timing_to_txt.R::afni_to_task]]
-    # otherwise use ../dollar_reward_events.txt (old, from original eprime version)
-    # this should/can be set by .bat files
     parser = argparse.ArgumentParser(description='Run dollar rewards task')
     parser.add_argument('timing_files',
                         type=str, nargs='+', default=["dollar_reward_events.txt"],
@@ -338,8 +332,18 @@ if __name__ == "__main__":
                         help='where the experiment is run (different default settings)')
     parser.add_argument('--nruns', nargs=1, type=int, default=None,
                         help='how many runs. default to all given')
-    parsed = parser.parse_args()
-    print(parsed)
+    parsed = parser.parse_args(argv)
+    return parsed
+
+def run_dollarreward(parsed):
+    from time import time
+    printer = ExternalCom()
+    logger = FileLogger()
+
+    # if we specify file(s) as arguments. read as though they're tr independent files
+    # see [[file:../timing/timing_to_txt.R::afni_to_task]]
+    # otherwise use ../dollar_reward_events.txt (old, from original eprime version)
+    # this should/can be set by .bat files
 
     # specified timing files can set the number of trials
     # but we can also restrict by nruns
@@ -467,3 +471,14 @@ if __name__ == "__main__":
         dr.win.close()
 
         run_info.next_run()
+
+
+def main():
+    import sys
+    parsed = parse_args(sys.argv[1:])
+    print(parsed)
+    run_dollarreward(parsed)
+
+
+if __name__ == "__main__":
+    main()

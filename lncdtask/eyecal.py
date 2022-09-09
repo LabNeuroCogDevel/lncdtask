@@ -1,8 +1,12 @@
 #!/usr/bin/env python
 try:
-    from lncdtask import LNCDTask, create_window, replace_img, wait_for_scanner
+    from lncdtask import LNCDTask, create_window, replace_img, \
+            wait_for_scanner, ExternalCom, RunDialog, FileLogger
 except ImportError:
-    from lncdtask.lncdtask import LNCDTask, create_window, replace_img, wait_for_scanner
+    from lncdtask.lncdtask import LNCDTask, create_window, replace_img,\
+            wait_for_scanner, ExternalCom, RunDialog, FileLogger
+
+import sys
 import numpy as np
 import pandas as pd
 
@@ -30,6 +34,10 @@ def random_pos_df(dur=.5, **kargs):
                        'position': p, 'onset': onset})
         onset = onset + dur
 
+    # last iti so we see all of final dot
+    events.append({'event_name': 'iti',
+                   'position': 0, 'onset': onset})
+
     return pd.DataFrame(events)
 
 
@@ -38,7 +46,8 @@ class EyeCal(LNCDTask):
     show a dot to VGS to at a bunch of intervals
     """
     def __init__(self, *karg, **kargs):
-        """ create DollarReward task. like LNCDTask, need onset_df and maybe win and/or participant
+        """ create DollarReward task. like LNCDTask,
+        need onset_df and maybe win and/or participant
         this also adds a ringimg dictionary and an imageratsize (dotsize)
         >> win = create_window(False)
         >> dr = EyeCal(win=win, externals=[printer])
@@ -64,13 +73,8 @@ class EyeCal(LNCDTask):
         return(self.flip_at(onset, self.trialnum, 'dot', position))
 
 
-if __name__ == "__main__":
-    import sys
+def parse_args(argv):
     import argparse
-    from lncdtask import ExternalCom, RunDialog, FileLogger
-    printer = ExternalCom()
-    eyetracker = None
-
     parser = argparse.ArgumentParser(description='Run Eye Calibration')
     parser.add_argument('--tracker',
                         choices=["arrington", "lpt", "testing"],
@@ -84,9 +88,13 @@ if __name__ == "__main__":
                         type=float,
                         default=0.5,
                         help='how long to show each point')
-    parsed = parser.parse_args()
-    print(parsed)
+    parsed = parser.parse_args(argv)
+    return(parsed)
 
+
+def run_eyecal(parsed):
+    printer = ExternalCom()
+    eyetracker = None
     run_info = RunDialog(extra_dict={'fullscreen': True,
                                      'dur': parsed.dur,
                                      'n_right': parsed.n_right},
@@ -110,7 +118,7 @@ if __name__ == "__main__":
     run_id = f"{participant.ses_id()}_task-EC_run-{run_info.run_num()}"
 
     if parsed.tracker == 'arrington':
-        from externalcom import Arrington
+        from lncdtask.externalcom import Arrington
         eyetracker = Arrington()
         eyecal.externals.append(eyetracker)
         eyetracker.new(run_id)
@@ -119,6 +127,16 @@ if __name__ == "__main__":
     logger.new(participant.log_path(run_id))
     eyecal.externals.append(logger)
 
-    eyecal.run()
+    eyecal.run(end_wait=1)
     eyecal.onset_df.to_csv(participant.run_path(f"run-{run_info.run_num()}_info"))
     win.close()
+
+
+def main():
+    parsed = parse_args(sys.argv[1:])
+    print(parsed)
+    run_eyecal(parsed)
+
+
+if __name__ == "__main__":
+    main()

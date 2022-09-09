@@ -27,6 +27,7 @@ from rundialog import RunDialog
 from screen import wait_until, create_window, take_screenshot, msg_screen, replace_img, wait_for_scanner
 from externalcom import Arrington, Eyelink, MuteWinSound, ParallelPortEEG, AllExternal, ExternalCom, FileLogger
 from arrington_socket import ArringtonSocket
+from trial_shuffle import shuf_for_ntrials
 import psychopy
 from psychopy import visual, core
 

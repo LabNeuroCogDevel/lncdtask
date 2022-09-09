@@ -12,7 +12,18 @@ Useful where a "task" can be described by the sequence:
   3. flip & mark in external sources (e.g. eye tracker event, ttl marker)
 
 
-see `helloworldtask.py` and `lncdtask/dollarreward.py` for examples
+
+Install with pip::
+
+   python3 -m pip install git+https://github.com/LabNeuroCogDevel/lncdtask --user --upgrade
+   python3 -m lncdtask.eyecal
+   # and/or 
+   python3 -m lncdtask.dollarreward
+
+
+Or clone and inspect `helloworldtask.py`, `lncdtask/eyecal.py`, and  `lncdtask/dollarreward.py` for examples.
+
+For specific sites, see MS Windows read `*.bat` files. 
 
 Features
 --------
