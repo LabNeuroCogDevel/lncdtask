@@ -5,6 +5,7 @@ except ImportError:
     from lncdtask.lncdtask import LNCDTask, create_window, msg_screen
 import numpy as np
 import pandas as pd
+import psychopy.core
 from psychopy import event
 
 
@@ -73,7 +74,7 @@ class ArrCal(LNCDTask):
         self.crcl.draw()
         self.msgbox.pos = (x, y)
         self.msgbox.color = 'black'
-        self.msgbox.text = str(i)
+        self.msgbox.text = str(i+1)
         self.msgbox.draw()
 
     def usage(self):
@@ -81,10 +82,10 @@ class ArrCal(LNCDTask):
         self.msgbox.pos = (-.5, -.9)
         self.msgbox.height = .05
         self.msgbox.color = 'gray'
-        self.msgbox.text = "esc/q. #, space, or arrow"
+        self.msgbox.text = "esc/q. # or arrow. space to use"
         self.msgbox.draw()
 
-    def dot(self, dot_i=0):
+    def dot(self, dot_i=0, used=False):
         """all dots in gray. primary in yellow"""
         self.trialnum = self.trialnum + 1
         self.usage()  # show instruction menu
@@ -92,8 +93,9 @@ class ArrCal(LNCDTask):
         for i in range(len(self.dot_pos)):
             self.draw_dot(i)
         # current in yellow
-        self.draw_dot(dot_i, 'yellow')
-        return(self.flip_at(0, self.trialnum, 'dot'))
+        color = 'red' if used else 'yellow'
+        self.draw_dot(dot_i, color)
+        return(self.flip_at(0, self.trialnum, 'dot', color))
 
 
 if __name__ == "__main__":
@@ -125,27 +127,38 @@ if __name__ == "__main__":
         from externalcom import Arrington
         eyetracker = Arrington()
         eyecal.externals.append(eyetracker)
+        # "calibration_SnapMode ON"
+        # "calibration_Snap %d"
 
     dot_i = 0  # 0 to 9
     while True:
         # print instruction text text on bottom
         eyecal.msgbox.draw()
-        print(dot_i)
+        # print(dot_i)
         eyecal.dot(dot_i)
         res = event.waitKeys()
-        print(res)
-        if res[0] in ['space', 'right']:
-            dot_i = (dot_i + 1) % len(eyecal.dot_pos)
-        elif res[0] in ['left']:
-            dot_i = (dot_i - 1) % len(eyecal.dot_pos)
+        # print(res)
+        if res[0] in ['space']:
+            eyecal.dot(dot_i, used=True)
+            cmd = f"calibration_Snap {dot_i+1}"
+            if eyetracker:
+                eyetracker.vpxsend(cmd)
+            else:
+                print("# want to " + cmd)
+            psychopy.core.wait(.1)
+            eyecal.dot(dot_i)
         elif res[0] in ['q']:
             break
-        else:
+        elif res[0] in [str(i) for i in range(10)]:
             try:
                 i = int(res[0])
-                if i < len(eyecal.dot_pos):
-                    dot_i = i
+                if i <= len(eyecal.dot_pos) and i > 0:
+                    dot_i = i - 1
             except Exception:
                 pass
+        elif res[0] in ['left']:
+            dot_i = (dot_i - 1) % len(eyecal.dot_pos)
+        else:
+            dot_i = (dot_i + 1) % len(eyecal.dot_pos)
 
     win.close()
