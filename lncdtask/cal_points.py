@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 try:
     from lncdtask import LNCDTask, create_window, msg_screen
 except ImportError:
@@ -49,7 +49,7 @@ class ArrCal(LNCDTask):
     show dot at calibration points
     """
     def __init__(self, *karg, **kargs):
-        """ 
+        """
         >> win = create_window(False)
         >> dr = ArrCal(win=win, externals=[printer])
         >> dr.dot(0, .75)
@@ -62,7 +62,9 @@ class ArrCal(LNCDTask):
         # events
         self.add_event_type('dot', self.dot, ['dot_i'])
 
-        self.dot_pos = gen_dots(3, 3)
+        self.rows = 3
+        self.cols = 3
+        self.dot_pos = gen_dots(self.rows, self.cols)
 
     def draw_dot(self, i, color='gray'):
         x = self.dot_pos[i][0]
@@ -82,7 +84,7 @@ class ArrCal(LNCDTask):
         self.msgbox.pos = (-.5, -.9)
         self.msgbox.height = .05
         self.msgbox.color = 'gray'
-        self.msgbox.text = "esc/q. # or arrow. space to use"
+        self.msgbox.text = "esc/q. #, space, arrow. enter to use"
         self.msgbox.draw()
 
     def dot(self, dot_i=0, used=False):
@@ -110,6 +112,10 @@ if __name__ == "__main__":
                         choices=["arrington", "test"],
                         default="arrington",
                         help='how to track eyes')
+    parser.add_argument('--fullscreen',
+                        choices=["yes", "no"],
+                        default="yes",
+                        help='run fullcreen?')
     parser.add_argument('--n',
                         type=int,
                         default=9,
@@ -118,7 +124,7 @@ if __name__ == "__main__":
     print(parsed)
 
     # create task
-    win = create_window(False)
+    win = create_window(parsed.fullscreen == 'yes')
     eyecal = ArrCal(win=win, externals=[printer])
     eyecal.gobal_quit_key()  # escape quits
     eyecal.DEBUG = False
@@ -136,9 +142,9 @@ if __name__ == "__main__":
         eyecal.msgbox.draw()
         # print(dot_i)
         eyecal.dot(dot_i)
-        res = event.waitKeys()
-        # print(res)
-        if res[0] in ['space']:
+        key = event.waitKeys()
+        print(key)
+        if key[0] in ['return']:
             eyecal.dot(dot_i, used=True)
             cmd = f"calibration_Snap {dot_i+1}"
             if eyetracker:
@@ -147,18 +153,28 @@ if __name__ == "__main__":
                 print("# want to " + cmd)
             psychopy.core.wait(.1)
             eyecal.dot(dot_i)
-        elif res[0] in ['q']:
+        elif key[0] in ['q']:
             break
-        elif res[0] in [str(i) for i in range(10)]:
+        elif key[0] in [str(i) for i in range(10)]:
             try:
-                i = int(res[0])
+                i = int(key[0])
                 if i <= len(eyecal.dot_pos) and i > 0:
                     dot_i = i - 1
             except Exception:
                 pass
-        elif res[0] in ['left']:
-            dot_i = (dot_i - 1) % len(eyecal.dot_pos)
+        elif key[0] in ['left']:
+            dot_i = dot_i - eyecal.cols
+        elif key[0] in ['right']:
+            dot_i = dot_i + eyecal.cols
+        elif key[0] in ['up', 'down']:
+            mvdir = -1 if key[0] == 'up' else 1
+            cur_col = int(dot_i/eyecal.cols)*(eyecal.cols)
+            into_row = (dot_i%eyecal.rows + mvdir)%eyecal.rows
+            dot_i =  cur_col + into_row
         else:
-            dot_i = (dot_i + 1) % len(eyecal.dot_pos)
+            dot_i = dot_i + 1
+
+        # make sure we're in bounds
+        dot_i = dot_i % len(eyecal.dot_pos)
 
     win.close()
