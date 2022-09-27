@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 try:
     from lncdtask import LNCDTask, create_window, replace_img, \
             wait_for_scanner, ExternalCom, RunDialog, FileLogger
@@ -11,13 +11,13 @@ import numpy as np
 import pandas as pd
 
 
-def random_positions(center=.2, edge=.9, n=20):
+def random_positions(center=.2, edge=.9, n=20, reps=1):
     # default is 20 steps from center .2 to edge .9 (right side)
     # left side is that but negative: center -.2 to edge -.9
     # for the right side
     p_r = np.linspace(center, edge, n)
     p_lr = np.concatenate([p_r, -1 * p_r])
-    ridx = np.random.permutation(len(p_lr))
+    ridx = [p for ii in range(reps) for p in np.random.permutation(len(p_lr)) ]
     return p_lr[ridx]
 
 
@@ -82,11 +82,15 @@ def parse_args(argv):
                         help='how to track eyes')
     parser.add_argument('--n_right',
                         type=int,
-                        default=20,
+                        default=4,
                         help='how many points to use')
     parser.add_argument('--dur',
                         type=float,
-                        default=0.5,
+                        default=1.0,
+                        help='how long to show each point')
+    parser.add_argument('--reps',
+                        type=int,
+                        default=3,
                         help='how long to show each point')
     parsed = parser.parse_args(argv)
     return(parsed)
@@ -97,6 +101,7 @@ def run_eyecal(parsed):
     eyetracker = None
     run_info = RunDialog(extra_dict={'fullscreen': True,
                                      'dur': parsed.dur,
+                                     'reps': parsed.reps,
                                      'n_right': parsed.n_right},
                          order=['subjid', 'run_num',
                                 'timepoint', 'fullscreen', 'dur', 'n_right'])
@@ -106,11 +111,12 @@ def run_eyecal(parsed):
 
     dur = float(run_info.info['dur'])
     n_right = int(run_info.info['n_right'])
+    reps = int(run_info.info['n_right'])
 
     # create task
     win = create_window(run_info.info['fullscreen'])
     eyecal = EyeCal(win=win, externals=[printer],
-                    onset_df=random_pos_df(dur=dur, n=n_right))
+                    onset_df=random_pos_df(dur=dur, n=n_right, reps=reps))
     eyecal.gobal_quit_key()  # escape quits
     eyecal.DEBUG = False
 
@@ -118,7 +124,12 @@ def run_eyecal(parsed):
     run_id = f"{participant.ses_id()}_task-EC_run-{run_info.run_num()}"
 
     if parsed.tracker == 'arrington':
-        from lncdtask.externalcom import Arrington
+        try:
+            # as module
+            from lncdtask.externalcom import Arrington
+        except ImportError:
+            # as script
+            from externalcom import Arrington
         eyetracker = Arrington()
         eyecal.externals.append(eyetracker)
         eyetracker.new(run_id)
