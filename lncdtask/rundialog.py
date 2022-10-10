@@ -11,8 +11,10 @@ class RunDialog():
     * 'run_num' can be incremented
     """
     def __init__(self, extra_dict={}, order=['run_num','subjid', 'timepoint']):
-        self.info = {'subjid': "000", 'run_num': 1, 'timepoint': 1, **extra_dict}
-        self.prev = {**self.info}
+        self.info = {'subjid': "000", 'run_num': 1, 'timepoint': 1}
+        self.info.update(extra_dict)
+        self.prev = {}
+        self.prev.update(self.info)
         self.order = order
 
     def next_run(self):
@@ -20,7 +22,8 @@ class RunDialog():
 
     def dlg_ok(self):
         """returns true if okay; sideeffect: changes self.info"""
-        self.prev = {**self.info}
+        self.prev = {}
+        self.prev.update(self.info)
         dlg = DlgFromDict(self.info, order=self.order)
         return dlg.OK
 

@@ -14,12 +14,12 @@ dataframe
 # TODO: rework dollarreward as console script?
 try:
     from participant import Participant
-except ModuleNotFoundError:
+except ImportError:
     from os.path import dirname, abspath
     import sys
     this_file = abspath(__file__)
     package_root = dirname(this_file)
-    print(f"inserting {package_root} to path")
+    print("inserting %s to path" % package_root)
     sys.path.insert(1, package_root)
     from participant import Participant
 
@@ -55,7 +55,8 @@ class EventRunner():
         for i, key in enumerate(self.args_cols):
             event_vals[i] = event_info.get(key)
             if event_vals[i] is None:
-                print(f"WARNING! no value for column '{key}' when running event function '{self.event_name}'")
+                print("WARNING! no value for column '%s' when running event function '%s'" %
+                      (key,self.event_name))
 
         return(self.func(*event_vals))
 
@@ -125,7 +126,7 @@ class LNCDTask():
         msg_screen(self.msgbox, message)
 
 
-    def flip_at(self, onset, *kargs, mark_func=None):
+    def flip_at(self, onset, mark_func=None, *kargs):
        """wait and then flip.
        send event notification to external sources with mark_func (def to mark_external)
        returns dictionary with 'flip' time"""
@@ -186,7 +187,8 @@ class LNCDTask():
             if self.DEBUG:
                 print(row)
             if ev is None:
-                print(f"WARNING: event {i} unknown event '{event_name}'. add it with add_event_type()!")
+                print("WARNING: event %i unknown event '%s'. add it with add_event_type()!" %
+                      (i, event_name))
                 continue
 
             self.results[i] = ev.run(row)

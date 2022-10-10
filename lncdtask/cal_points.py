@@ -146,7 +146,7 @@ if __name__ == "__main__":
         print(key)
         if key[0] in ['return']:
             eyecal.dot(dot_i, used=True)
-            cmd = f"calibration_Snap {dot_i+1}"
+            cmd = "calibration_Snap %d" % (dot_i+1)
             if eyetracker:
                 eyetracker.vpxsend(cmd)
             else:

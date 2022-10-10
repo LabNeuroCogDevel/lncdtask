@@ -40,20 +40,21 @@ class Participant():
         
         # subj_info/subj/timepoint_date/modality_set_date/
         tpdir = self.timepoint
-        lastdir = "_".join([self.vdate, *task_info])
+        tinfo_str = "_".join(task_info)
+        lastdir = "_".join([self.vdate, tinfo_str])
         self.datadir = os.path.join(subj_root, "sub-" + subjid, "ses-" + tpdir, lastdir)
         self.logdir = os.path.join(self.datadir, 'log')
         if mkdir:
             os.makedirs(self.logdir, exist_ok=True)
 
     def run_path(self, bname):
-        return os.path.join(self.datadir,f"{bname}-{time():.0f}.csv")
+        return os.path.join(self.datadir,"%s-%.0f.csv"  % (bname, time()))
 
     def log_path(self, bname):
-        return os.path.join(self.logdir,f"{bname}-{time():.0f}.log")
+        return os.path.join(self.logdir,"%s-%.0f.log" % (bname, time()))
 
     def ses_id(self, use_date=False):
         "bids format session id: sub-XXX_ses-yyy. can use yyyymmdd for ses or timepoint"
         ses = self.vdate if use_date else self.timepoint
-        return f"sub-{self.subjid}_ses-{ses}"
+        return "sub-%s_ses-%s" % (self.subjid, ses)
 
