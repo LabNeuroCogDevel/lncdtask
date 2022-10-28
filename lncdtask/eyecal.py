@@ -53,7 +53,9 @@ class EyeCal(LNCDTask):
         >> dr = EyeCal(win=win, externals=[printer])
         >> dr.dot(0, .75)
         """
-        super().__init__(*karg, **kargs)
+        super(EyeCal, self).__init__(*karg, **kargs)
+        # py3 version
+        #super().__init__(*karg, **kargs)
 
         # extra stims/objects, exending base LNCDTask class
         self.trialnum = 0
@@ -102,9 +104,8 @@ def run_eyecal(parsed):
     run_info = RunDialog(extra_dict={'fullscreen': True,
                                      'dur': parsed.dur,
                                      'reps': parsed.reps,
-                                     'n_right': parsed.n_right},
-                         order=['subjid', 'run_num',
-                                'timepoint', 'fullscreen', 'dur', 'n_right'])
+                                     'n_right': parsed.n_right}, 
+                         order=['subjid', 'run_num', 'timepoint', 'fullscreen', 'dur', 'n_right', 'reps'])
 
     if not run_info.dlg_ok():
         sys.exit()
@@ -121,7 +122,7 @@ def run_eyecal(parsed):
     eyecal.DEBUG = False
 
     participant = run_info.mk_participant(['EyeCal'])
-    run_id = f"{participant.ses_id()}_task-EC_run-{run_info.run_num()}"
+    run_id = "%s_task-EC_run-%d"%(participant.ses_id(),run_info.run_num())
 
     if parsed.tracker == 'arrington':
         try:
@@ -139,7 +140,7 @@ def run_eyecal(parsed):
     eyecal.externals.append(logger)
 
     eyecal.run(end_wait=1)
-    eyecal.onset_df.to_csv(participant.run_path(f"run-{run_info.run_num()}_info"))
+    eyecal.onset_df.to_csv(participant.run_path("run-%s_info" % run_info.run_num()))
     win.close()
 
 
