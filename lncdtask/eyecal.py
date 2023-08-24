@@ -40,6 +40,9 @@ def random_pos_df(dur=.5, **kargs):
 
     return pd.DataFrame(events)
 
+def ttl_wrap(desc):
+    print(desc)
+    return 10
 
 class EyeCal(LNCDTask):
     """
@@ -77,9 +80,13 @@ def parse_args(argv):
     import argparse
     parser = argparse.ArgumentParser(description='Run Eye Calibration')
     parser.add_argument('--tracker',
-                        choices=["arrington", "lpt", "testing"],
+                        choices=["arrington", "testing", "eyelink"],
                         default=None,
                         help='how to track eyes')
+    parser.add_argument('--lpt',
+                        type=str,
+                        default="",
+                        help='parallel port (LPT) address to send TTL triggers (/dev/parport0, 53264)')
     parser.add_argument('--n_right',
                         type=int,
                         default=4,
@@ -133,6 +140,26 @@ def run_eyecal(parsed):
         eyetracker = Arrington()
         eyecal.externals.append(eyetracker)
         eyetracker.new(run_id)
+    elif parsed.tracker == "eyelink":
+        try:
+            # as module
+            from lncdtask.externalcom import Eyelink
+        except ImportError:
+            # as script
+            from externalcom import Eyelink
+        eyetracker = Eyelink(win.size)
+        eyecal.externals.append(eyetracker)
+        eyetracker.new(run_id)
+
+    if parsed.lpt:
+        try:
+            # as module
+            from lncdtask.externalcom import ParallelPortEEG
+        except ImportError:
+            # as script
+            from externalcom import ParallelPortEEG
+        port = parsed.lpt # on windows, for to int. on linux /dev/parport0
+        eyetracker = ParallelPortEEG(port, lookup_func=ttl_wrap, verbose=True)
 
     logger = FileLogger()
     logger.new(participant.log_path(run_id))

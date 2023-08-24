@@ -15,6 +15,7 @@ install instructions
 TODO: use pyGaze instead
 """
 import pylink as pl
+import re
 
 
 class eyelink:
@@ -42,6 +43,8 @@ class eyelink:
 
     def open(self, dfn):
         """open file"""
+        # only alpha numeric and _
+        dfn = re.sub('[^A-Za-z0-9]','_',dfn)
         # pygaze note: cannot be more than 8 characters?!
         if len(dfn) > 6:
             raise Exception("%s is too long of a file name!" % dfn)

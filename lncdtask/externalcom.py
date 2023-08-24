@@ -2,6 +2,7 @@ import os
 import os.path
 from time import time
 from psychopy import core
+import re
 
 class ExternalCom():
     def __init__(self, lookup=None):
@@ -123,7 +124,13 @@ class Eyelink(ExternalCom):
     """
     def __init__(self, winsize, verbose=True):
         self.verbose=verbose
-        from .pylink_help import eyelink
+
+        try:
+            # as module
+            from lncdtask.pylink_help import eyelink
+        except ImportError:
+            # as script
+            from pylink_help import eyelink
         self.eyelink = eyelink(winsize)
 
     def event(self, code):
@@ -132,9 +139,17 @@ class Eyelink(ExternalCom):
         self.eyelink.trigger(code)
     
     def new(self, fname):
-        self.eyelink.open(fname[1:6])
+        # sepcifically grab the first id looking thing
+        print("adjusting %s" % fname)
+        if len(fname) > 6:
+            if id_match := re.search('\d{4,6}',fname):
+                fname = id_match.group()
+            else:
+                fname = fname[0:6]
         if self.verbose:
-            print("open eyetracking file with truncated name '%s'" % fname[1:6])
+            print("open eyetracking file with truncated name '%s'" % fname)
+
+        self.eyelink.open(fname)
 
     def start(self):
         self.eyelink.start()
