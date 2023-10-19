@@ -46,8 +46,11 @@ class eyelink:
         # only alpha numeric and _
         dfn = re.sub('[^A-Za-z0-9]','_',dfn)
         # pygaze note: cannot be more than 8 characters?!
-        if len(dfn) > 6:
-            raise Exception("%s is too long of a file name!" % dfn)
+
+        # base36 can encode unix seconds in the filename with a character to spair for the next 50 years
+        # len(base_repr(int(datetime.datetime(2099,12,31,23,59,59).strftime("%s")),36)) == 7
+        if len(dfn) > 8:
+            raise Exception("%s is too long of a file name. 8 char is max. consider base36 of unix seconds!" % dfn)
         self.el.openDataFile(dfn + '.EDF')
 
     def start(self):
