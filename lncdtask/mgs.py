@@ -38,9 +38,9 @@ def random_positions(pos=[-.875,-.5,.5,.875], delay=[2.5,7.5], reps=4):
     """
     randomize position and delay pairs with 'reps' number of repeats
     """
-    pos_delay = [(p,d) for p in pos for d in delay]
+    pos_delay = np.array([(p,d) for p in pos for d in delay])
     ridx = [pd for ii in range(reps) for pd in np.random.permutation(len(pos_delay)) ]
-    return pos[ridx]
+    return pos_delay[ridx]
 
 
 def random_pos_df():
@@ -79,30 +79,48 @@ class MGSEye(LNCDTask):
         # extra stims/objects, extending base LNCDTask class
         self.trialnum = 0
 
+        # update circle size
+        # no effect?
+        #self.crcl.size = (1, 1)
+        #self.crcl.unit = 'pix'
+        #self.crcl.rad = 15
+
         # events
         # also see MGS_TIMING: 'mgs_cue','mgs_target','mgs_delay','mgs_exec','iti'
-        self.add_event_type('mgs_cue', lambda **kargs: self.cross(color='yellow', **kargs), ['onset', 'code'])
+        self.add_event_type('mgs_cue', self.mgs_cue, ['onset', 'code'])
         self.add_event_type('mgs_target', self.dot, ['onset', 'position'])
-        self.add_event_type('mgs_delay', lambda **kargs: self.cross(color='blue', **kargs), ['onset', 'code'])
+        self.add_event_type('mgs_delay',self.mgs_delay, ['onset', 'code'])
         # black is empty screen
-        self.add_event_type('mgs_exec', lambda **kargs: self.cross(color='black', **kargs), ['onset', 'code'])
-        self.add_event_type('iti', self.iti, ['onset'])
+        self.add_event_type('mgs_exec', self.mgs_exec, ['onset', 'code'])
+        self.add_event_type('iti', self.mgs_helper, ['onset','position','code'])
+
+    def mgs_cue(self,onset,code):
+        return self.cross(color='yellow',onset=onset,code=code)
+
+    def mgs_delay(self,onset,code):
+        return self.cross(color='blue', onset=onset, code=code)
+
+    def mgs_exec(self, onset, code):
+        return self.cross(color='black', onset=onset, code=code)
+
+    def mgs_helper(self, onset, position, code):
+        return self.cross(color='white', onset=onset, code=code, x_pos=position)
 
     def dot(self, onset, position=0, code='dot'):
         """position dot on horz axis to cue anti saccade
         position is from -1 to 1
         """
         self.crcl.pos = (position * self.win.size[0]/2, 0)
-        self.crcl.size = (1, 1)
         self.crcl.draw()
         return(self.flip_at(onset, code))
 
-    def cross(self, onset, color='white', code='cross'):
+    def cross(self, onset, color='white', code='cross', x_pos=0):
         if color == 'yellow': # yellow = mgs_cue
             self.trialnum = self.trialnum + 1
             # TODO: mark trial if SR
-
-        self.iti_fix.color=color
+       
+        self.iti_fix.pos = (x_pos,0)
+        self.iti_fix.color = color
         self.iti_fix.draw()
         return(self.flip_at(onset, code))
 
@@ -114,6 +132,10 @@ def parse_args(argv):
                         choices=["arrington", "testing", "eyelink"],
                         default=None,
                         help='how to track eyes')
+    parser.add_argument('--nofullscreen',
+                        action="store_true",
+                        default=False,
+                        help='how to track eyes')
     parser.add_argument('--lpt',
                         type=str,
                         default="",
@@ -122,10 +144,10 @@ def parse_args(argv):
     return(parsed)
 
 
-def run_eyecal(parsed):
+def run_mgseye(parsed):
     printer = ExternalCom()
     eyetracker = None
-    run_info = RunDialog(extra_dict={'fullscreen': True,
+    run_info = RunDialog(extra_dict={'fullscreen': not parsed.nofullscreen,
                                      'tracker': ["eyelink","arrington","testing"]},
                          order=['subjid', 'run_num',
                                 'timepoint', 'fullscreen'])
@@ -178,6 +200,7 @@ def run_eyecal(parsed):
     logger.new(participant.log_path(run_id))
     mgs.externals.append(logger)
 
+    print(mgs.onset_df)
     mgs.run(end_wait=1)
     mgs.onset_df.to_csv(participant.run_path(f"run-{run_info.run_num()}_info"))
     win.close()
@@ -186,7 +209,7 @@ def run_eyecal(parsed):
 def main():
     parsed = parse_args(sys.argv[1:])
     print(parsed)
-    run_eyecal(parsed)
+    run_mgseye(parsed)
 
 
 if __name__ == "__main__":
