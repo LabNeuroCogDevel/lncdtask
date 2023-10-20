@@ -25,6 +25,14 @@ Or clone and inspect `helloworldtask.py`, `lncdtask/eyecal.py`, and  `lncdtask/d
 
 For specific sites, see MS Windows read `*.bat` files. 
 
+
+For developing on a git clone using pipx (avoid older system `psychopy`)::
+
+  git clone https://github.com/LabNeuroCogDevel/lncdtask && cd lncdtask
+  pipx install -e $(pwd) --force
+  pipx inject lncdtask psychopy
+
+
 Features
 --------
 
