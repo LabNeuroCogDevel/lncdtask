@@ -41,7 +41,10 @@ class eyelink:
         self.el = el
         self.sp = sp
 
-    def open(self, dfn):
+        # sub+session. data file name. set in open. saved to tracker. copied locally
+        self.sessionid = None
+
+    def open(self, dfn, sessionid=None, base36enc=False):
         """open file"""
         # only alpha numeric and _
         dfn = re.sub('[^A-Za-z0-9]','_',dfn)
@@ -50,8 +53,18 @@ class eyelink:
         # base36 can encode unix seconds in the filename with a character to spair for the next 50 years
         # len(base_repr(int(datetime.datetime(2099,12,31,23,59,59).strftime("%s")),36)) == 7
         if len(dfn) > 8:
-            raise Exception("%s is too long of a file name. 8 char is max. consider base36 of unix seconds!" % dfn)
+            raise Warning("%s is too long of a file name. 8 char is max. using base36 of unix seconds!" % dfn)
+            base36enc=True
+        if base36enc:
+            import numpy
+            dfn = numpy.base_repr(int(datetime.datetime().now().strftime("%s")),36)
+
         self.el.openDataFile(dfn + '.EDF')
+        if sessionid is None:
+            sessionid=dfn
+        self.el.sendMessage("NAME: %s"%sessionid)
+
+        self.sessionid = sessionid
 
     def start(self):
         """start tracking"""
@@ -67,6 +80,15 @@ class eyelink:
         pl.getEYELINK().setOfflineMode()
         # el.sendCommand("set_offline_mode = YES")
         self.el.closeDataFile()
+
+    def get_data(seflf, saveas=None):
+
+        if saveas is None:
+            seconds = datetime.datetime.strftime(datetime.datetime.now(), "%Y%M%d%H%M%S")
+            # TODO: make sure session id is a save filename?
+            savas_edf = "%s_%s.edf" % (self.sessionid, seconds)
+        self.el.closeDataFile() # incase we didn't already
+        self.el.receiveDataFile("",saveas_edf)
 
     def trigger(self, eventname):
         """send event discription"""
