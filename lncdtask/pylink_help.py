@@ -16,6 +16,7 @@ TODO: use pyGaze instead
 """
 import pylink as pl
 import re
+import datetime
 
 
 class eyelink:
@@ -47,17 +48,22 @@ class eyelink:
     def open(self, dfn, sessionid=None, base36enc=False):
         """open file"""
         # only alpha numeric and _
+        if sessionid is None:
+            sessionid = dfn
         dfn = re.sub('[^A-Za-z0-9]','_',dfn)
         # pygaze note: cannot be more than 8 characters?!
 
         # base36 can encode unix seconds in the filename with a character to spair for the next 50 years
         # len(base_repr(int(datetime.datetime(2099,12,31,23,59,59).strftime("%s")),36)) == 7
         if len(dfn) > 8:
-            raise Warning("%s is too long of a file name. 8 char is max. using base36 of unix seconds!" % dfn)
+            #raise Warning("%s is too long of a file name. 8 char is max. using base36 of unix seconds!" % dfn)
             base36enc=True
         if base36enc:
             import numpy
-            dfn = numpy.base_repr(int(datetime.datetime().now().strftime("%s")),36)
+            old_dfn = dfn
+            dfn = numpy.base_repr(int(datetime.datetime.now().strftime("%s")),36)
+            if len(old_dfn)>8:
+                print(f"WARNING: {old_dfn}>8 chars long. using base36 on tracker instead: {dfn}")
 
         self.el.openDataFile(dfn + '.EDF')
         if sessionid is None:
@@ -77,22 +83,47 @@ class eyelink:
         """cose file and stop tracking"""
         self.el.sendMessage("END")
         pl.endRealTimeMode()
-        pl.getEYELINK().setOfflineMode()
         # el.sendCommand("set_offline_mode = YES")
         self.el.closeDataFile()
+        self.get_data()
+        #pl.getEYELINK().setOfflineMode()
 
-    def get_data(seflf, saveas=None):
+    def get_data(self, saveas=None):
 
         if saveas is None:
             seconds = datetime.datetime.strftime(datetime.datetime.now(), "%Y%M%d%H%M%S")
-            # TODO: make sure session id is a save filename?
-            savas_edf = "%s_%s.edf" % (self.sessionid, seconds)
+            savename = re.sub('[^A-Za-z0-9]','_',self.sessionid)
+            saveas = "%s_%s.edf" % (savename, seconds)
         self.el.closeDataFile() # incase we didn't already
-        self.el.receiveDataFile("",saveas_edf)
+        self.el.receiveDataFile("", saveas)
 
     def trigger(self, eventname):
         """send event discription"""
-        self.el.sendMessage(eventname)
+        self.el.sendCommand(f"record_status_message {eventname}")
+
+    def trial_start(self,trialid):
+        "12 numbers and letters that uniquely identify the trial"
+        self.el.sendMessage(f"TRIALID {trialid}")
+
+    def trial_end(self):
+        self.el.sendMessage("TRIAL OK")
+
+    def var_data(self, condition, value):
+        self.el.sendMessage(f"!V TRIAL_VAR_DATA {condition} {value}");
+
+    def update_screen(self, image_path):
+        # todo write
+        self.el.sendMessage(f"!V IMGLOAD FILL {image_path}");
+
+    def win_screenshot(self,win):
+        from tempfile import mkstemp
+        import os
+        screenshotname = mkstemp(suffix=".png")[1]
+        print(screenshotname)
+        win.getMovieFrame(buffer='back')
+        win.saveMovieFrames(screenshotname)
+        self.update_screen(screenshotname)
+        os.unlink(screenshotname)
 
     def eyeTrkCalib(self, colordepth=32):
         """

@@ -140,15 +140,7 @@ class Eyelink(ExternalCom):
     
     def new(self, fname):
         # sepcifically grab the first id looking thing
-        print("adjusting %s" % fname)
-        if len(fname) > 6:
-            if id_match := re.search('\d{4,6}',fname):
-                fname = id_match.group()
-            else:
-                fname = fname[0:6]
-        if self.verbose:
-            print("open eyetracking file with truncated name '%s'" % fname)
-
+        # NB max file length (w/o .edf) is 8. handled by pylink_helper
         self.eyelink.open(fname)
 
     def start(self):
@@ -228,7 +220,7 @@ class MuteWinSound(ExternalCom):
         except:
             # set no volumes and no origMutes, nothing will be done by funcs below
             if os.name in ['nt']:
-                print("WARNING: no volume control; install pycaw")
+                print(f"WARNING: no volume control; install pycaw")
                 print("\tpython -m pip --user install https://github.com/AndreMiras/pycaw/archive/master.zip")
             self.volumes = []
             self.origMute = []

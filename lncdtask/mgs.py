@@ -81,9 +81,9 @@ class MGSEye(LNCDTask):
 
         # update circle size
         # no effect?
-        #self.crcl.size = (1, 1)
-        #self.crcl.unit = 'pix'
-        #self.crcl.rad = 15
+        self.crcl.size = (1, 1)
+        self.crcl.unit = 'pix'
+        self.crcl.rad = 10
 
         # events
         # also see MGS_TIMING: 'mgs_cue','mgs_target','mgs_delay','mgs_exec','iti'
@@ -95,16 +95,20 @@ class MGSEye(LNCDTask):
         self.add_event_type('iti', self.mgs_helper, ['onset','position','code'])
 
     def mgs_cue(self,onset,code):
-        return self.cross(color='yellow',onset=onset,code=code)
+        self.trialnum = self.trialnum + 1
+        self.iti_fix.pos = (0,0)  # center
+        self.iti_fix.color = 'yellow'
+        self.iti_fix.draw()
+        return(self.flip_at(onset, self.trialnum, code, mark_func=self.mark_trial))
 
     def mgs_delay(self,onset,code):
-        return self.cross(color='blue', onset=onset, code=code)
+        return self.show_cross(color='blue', onset=onset, code=code)
 
     def mgs_exec(self, onset, code):
-        return self.cross(color='black', onset=onset, code=code)
+        return self.show_cross(color='black', onset=onset, code=code)
 
     def mgs_helper(self, onset, position, code):
-        return self.cross(color='white', onset=onset, code=code, x_pos=position)
+        return self.show_cross(color='white', onset=onset, code=code, x_pos=position)
 
     def dot(self, onset, position=0, code='dot'):
         """position dot on horz axis to cue anti saccade
@@ -114,11 +118,18 @@ class MGSEye(LNCDTask):
         self.crcl.draw()
         return(self.flip_at(onset, code))
 
-    def cross(self, onset, color='white', code='cross', x_pos=0):
-        if color == 'yellow': # yellow = mgs_cue
-            self.trialnum = self.trialnum + 1
-            # TODO: mark trial if SR
-       
+    def mark_trial(self, trial, *kargs):
+        # push to flip_at as mark_func
+        #self.win.callOnFlip(mark_func, *kargs)
+        if self.eyelink:
+            if self.trialnum > 1:
+                self.eyelink.eyelink.trial_end()
+            self.eyelink.eyelink.trial_start(trial)
+        self.mark_external(*kargs)
+
+
+    def show_cross(self, onset, color='white', code='cross', x_pos=0):
+        "most events are just showing a colored cross somewhere on the screen"
         self.iti_fix.pos = (x_pos,0)
         self.iti_fix.color = color
         self.iti_fix.draw()
@@ -146,9 +157,14 @@ def parse_args(argv):
 
 def run_mgseye(parsed):
     printer = ExternalCom()
-    eyetracker = None
+
+    # menu or already picked?
+    eyetrackers = ["eyelink","arrington","testing"]
+    if parsed.tracker:
+        eyetrackers = parsed.tracker 
+
     run_info = RunDialog(extra_dict={'fullscreen': not parsed.nofullscreen,
-                                     'tracker': ["eyelink","arrington","testing"]},
+                                     'tracker': eyetrackers},
                          order=['subjid', 'run_num',
                                 'timepoint', 'fullscreen'])
 
@@ -161,11 +177,13 @@ def run_mgseye(parsed):
                     onset_df=random_pos_df())
     mgs.gobal_quit_key()  # escape quits
     mgs.DEBUG = False
+    mgs.eyelink = None
 
     participant = run_info.mk_participant(['MGSEye'])
     run_id = f"{participant.ses_id()}_task-MGS_run-{run_info.run_num()}"
 
-    if parsed.tracker == 'arrington':
+
+    if run_info.info["tracker"] == 'arrington':
         try:
             # as module
             from lncdtask.externalcom import Arrington
@@ -175,16 +193,16 @@ def run_mgseye(parsed):
         eyetracker = Arrington()
         mgs.externals.append(eyetracker)
         eyetracker.new(run_id)
-    elif parsed.tracker == "eyelink":
+    elif run_info.info["tracker"] == "eyelink":
         try:
             # as module
             from lncdtask.externalcom import Eyelink
         except ImportError:
             # as script
             from externalcom import Eyelink
-        eyetracker = Eyelink(win.size)
-        mgs.externals.append(eyetracker)
-        eyetracker.new(run_id)
+        mgs.eyelink = Eyelink(win.size)
+        mgs.externals.append(mgs.eyelink)
+        mgs.eyelink.new(run_id)
 
     if parsed.lpt:
         try:
