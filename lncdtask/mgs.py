@@ -200,7 +200,7 @@ class MGSEye(LNCDTask):
 
 def parse_args(argv):
     import argparse
-    parser = argparse.ArgumentParser(description='Run Eye Calibration')
+    parser = argparse.ArgumentParser(description='Run memory guided saccade (mgs) task')
     parser.add_argument('--tracker',
                         choices=["arrington", "testing", "eyelink"],
                         default=None,
