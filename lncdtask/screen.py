@@ -49,14 +49,16 @@ def wait_for_scanner(textbox, trigger=['equal'], msg='Waiting for scanner (pulse
     return(starttime)
 
 
-def msg_screen(textbox, msg='no message given', pos=(0, 0), minwait=.4):
+def msg_screen(textbox, msg='no message given', pos=(0, 0), minwait=.4, flip=True):
     """quickly display a message. wait half a second. and avdance on any keypress"""
     textbox.pos = pos
     textbox.text = msg
     textbox.draw()
+    if not flip:
+        return
     textbox.win.flip()
     core.wait(minwait)
-    event.waitKeys()
+    return event.waitKeys()
 
 
 def create_window(fullscr, screen=0, bg=(-1,-1,-1)):

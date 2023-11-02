@@ -12,6 +12,10 @@ Port of EPrime1 task. MGS_lookatblue.es
 2 delays (short=2.5s, long=7.5s) and 4 dot positions (40,160,460,600)/640 %
 each combo repeated 4 times. 4 reps *2 delays*4 pos = 32 trials
 
+CLI USAGE:
+  lncdtask/mgs.py --nofullscreen --subjid wf --nofullscreen --tracker testing
+GUI DIALOG:
+  lncdtask/mgs.py
 """
 
 MGS_TIMING={
@@ -24,10 +28,10 @@ MGS_TIMING={
 
 try:
     from lncdtask import LNCDTask, create_window, replace_img, \
-            wait_for_scanner, ExternalCom, RunDialog, FileLogger
+            wait_for_scanner, ExternalCom, RunDialog, FileLogger, msg_screen
 except ImportError:
     from lncdtask.lncdtask import LNCDTask, create_window, replace_img,\
-            wait_for_scanner, ExternalCom, RunDialog, FileLogger
+            wait_for_scanner, ExternalCom, RunDialog, FileLogger, msg_screen
 
 import sys
 import numpy as np
@@ -94,6 +98,64 @@ class MGSEye(LNCDTask):
         self.add_event_type('mgs_exec', self.mgs_exec, ['onset', 'code'])
         self.add_event_type('iti', self.mgs_helper, ['onset','position','code'])
 
+    def instructions(self):
+        blue = '#000080'  # dark blue used in EPrime
+
+
+        # 1. welcome - blue (b/c it was blue in EPrime)
+        self.win.color = blue; self.win.flip()
+        resp = msg_screen(self.msgbox,'Welcome to the Lab\n\nThis is the MGS task.\n\n (c to calibrate)')
+        if 'c' in resp and self.eyelink is not None:
+            # TODO: two opengl screens? does this fail?
+            self.eyelink.eyelink.eyeTrkCalib()
+
+
+        # TODO: does this send in a way anyone can see? not recording yet
+        if self.eyelink:
+            self.eyelink.eyelink.trigger('instructions, not recording')
+
+        ## step wise instructions
+        self.win.color = 'black'; self.win.flip()
+
+        i=0;
+        while True:
+            if i == 0:
+                self.crcl.pos = (0.9 * self.win.size[0]/2, 0)
+                self.crcl.draw()
+                resp = msg_screen(self.msgbox,'A dot will appear.\nLook at it!', pos=(0,.9))
+
+            elif i == 1:
+                self.iti_fix.color = 'blue'
+                self.iti_fix.draw()
+                resp = msg_screen(self.msgbox,'The yellow dot will disappear.\nLook back to the blue center cross.', pos=(0,.6))
+            
+            elif i == 2:
+                resp = msg_screen(self.msgbox,'When the cross also disappears\nMove your eyes to where the flash was\n\n\n<---   --->', pos=(0,.7))
+
+            elif i == 3: 
+                msg_screen(self.msgbox,'At the end, your helper', pos=(0,.8), flip=False)
+                self.iti_fix.pos = (.9, 0); self.iti_fix.color = 'white'; self.iti_fix.draw()
+                resp = msg_screen(self.msgbox,'shows you the right place to look', pos=(0,-.8))
+
+            elif i == 4: 
+                # final summary
+                self.win.color = blue; self.win.flip()
+                self.img.image = 'images/mgs/mgs_summary.png'
+                self.img.draw()
+                resp = msg_screen(self.msgbox,'')
+
+            elif i == 5: 
+                # last screen before we start
+                self.win.color = 'black'; self.win.flip()
+                resp = msg_screen(self.msgbox,'Ready?\n\n(any key; esc to quit)')
+
+            if 'left' in resp and i > 0:
+                i -= 1
+            else:
+                i += 1
+            if i > 5:
+                break
+
     def mgs_cue(self,onset,code):
         self.trialnum = self.trialnum + 1
         self.iti_fix.pos = (0,0)  # center
@@ -151,6 +213,14 @@ def parse_args(argv):
                         type=str,
                         default="",
                         help='parallel port (LPT) address to send TTL triggers (/dev/parport0, 53264)')
+    parser.add_argument('--subjid',
+                        type=str,
+                        default=None,
+                        help='subject id. if set will not open dialog box gui')
+    parser.add_argument('--run_num',
+                        type=int,
+                        default=1,
+                        help='within visit run number')
     parsed = parser.parse_args(argv)
     return(parsed)
 
@@ -163,12 +233,22 @@ def run_mgseye(parsed):
     if parsed.tracker:
         eyetrackers = parsed.tracker 
 
-    run_info = RunDialog(extra_dict={'fullscreen': not parsed.nofullscreen,
-                                     'tracker': eyetrackers},
+    extra_dict={'fullscreen': not parsed.nofullscreen,
+                'tracker': eyetrackers}
+    run_info = RunDialog(extra_dict=extra_dict,
                          order=['subjid', 'run_num',
                                 'timepoint', 'fullscreen'])
 
-    if not run_info.dlg_ok():
+    # dont want a gui window if we've specified subjid
+    if parsed.subjid:
+        run_info.info['subjid'] = parsed.subjid
+        run_info.info['run_num'] = parsed.run_num
+        dlg_success = True
+    else:
+        dlg_success = run_info.dlg_ok()
+
+    # maybe user closed with 'cancel'? dont run then
+    if not dlg_success:
         sys.exit()
 
     # create task
@@ -217,6 +297,11 @@ def run_mgseye(parsed):
     logger = FileLogger()
     logger.new(participant.log_path(run_id))
     mgs.externals.append(logger)
+
+    # want to fail early if ET setup isn't working
+    # so instructions are after that
+    # 'run()' calls 'start()' for each external. so should't be recording yet
+    mgs.instructions()
 
     print(mgs.onset_df)
     mgs.run(end_wait=1)
