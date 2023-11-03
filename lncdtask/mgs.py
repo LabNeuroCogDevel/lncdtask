@@ -70,7 +70,7 @@ class MGSEye(LNCDTask):
     """
     Memory Guided Saccade Behavioral Task.
     Events:
-     center fix (mgs cue); dot (mgs target); center fix (delay); empty screen 
+     center fix (mgs cue); dot (mgs target); center fix (delay); empty screen
     """
     def __init__(self, *karg, **kargs):
         """ create LNCDTask derivative,
@@ -98,64 +98,40 @@ class MGSEye(LNCDTask):
         self.add_event_type('mgs_exec', self.mgs_exec, ['onset', 'code'])
         self.add_event_type('iti', self.mgs_helper, ['onset','position','code'])
 
-    def instructions(self):
-        blue = '#000080'  # dark blue used in EPrime
-
-
-        # 1. welcome - blue (b/c it was blue in EPrime)
-        self.win.color = blue; self.win.flip()
-        resp = msg_screen(self.msgbox,'Welcome to the Lab\n\nThis is the MGS task.\n\n (c to calibrate)')
-        if 'c' in resp and self.eyelink is not None:
-            # TODO: two opengl screens? does this fail?
-            self.eyelink.eyelink.eyeTrkCalib()
-
-
-        # TODO: does this send in a way anyone can see? not recording yet
+    ## INSTRUCTIONS
+    def welcome(self):
+        msg = 'Welcome to the Lab\n\nThis is the MGS task.'
         if self.eyelink:
-            self.eyelink.eyelink.trigger('instructions, not recording')
+            msg += '\n\n (c to calibrate)'
+        return self.instruction_welcome(msg)
 
-        ## step wise instructions
+    def instruction_dot(self):
+        self.crcl.pos = (0.9 * self.win.size[0]/2, 0)
+        self.crcl.draw()
+        return msg_screen(self.msgbox,'A dot will appear.\nLook at it!', pos=(0,.9))
+    def instruction_cross(self):
+        self.iti_fix.color = 'blue'
+        self.iti_fix.draw()
+        return msg_screen(self.msgbox,'The yellow dot will disappear.\nLook back to the blue center cross.', pos=(0,.6))
+    def instruction_blank(self):
+        return msg_screen(self.msgbox,
+                          'When the cross also disappears\nMove your eyes to where the flash was\n\n\n<---   --->',
+                          pos=(0,.7))
+    def instruction_helper(self):
+        msg_screen(self.msgbox,'At the end, your helper', pos=(0,.8), flip=False)
+        self.iti_fix.pos = (.9, 0); self.iti_fix.color = 'white'; self.iti_fix.draw()
+        resp = msg_screen(self.msgbox,'shows you the right place to look', pos=(0,-.8))
+        return resp
+
+    def instruction_summary(self):
+        self.win.color = '#000080'; self.win.flip()
+        self.img.image = 'images/mgs/mgs_summary.png'
+        self.img.draw()
+        resp = msg_screen(self.msgbox,'')
         self.win.color = 'black'; self.win.flip()
+        return resp
 
-        i=0;
-        while True:
-            if i == 0:
-                self.crcl.pos = (0.9 * self.win.size[0]/2, 0)
-                self.crcl.draw()
-                resp = msg_screen(self.msgbox,'A dot will appear.\nLook at it!', pos=(0,.9))
-
-            elif i == 1:
-                self.iti_fix.color = 'blue'
-                self.iti_fix.draw()
-                resp = msg_screen(self.msgbox,'The yellow dot will disappear.\nLook back to the blue center cross.', pos=(0,.6))
-            
-            elif i == 2:
-                resp = msg_screen(self.msgbox,'When the cross also disappears\nMove your eyes to where the flash was\n\n\n<---   --->', pos=(0,.7))
-
-            elif i == 3: 
-                msg_screen(self.msgbox,'At the end, your helper', pos=(0,.8), flip=False)
-                self.iti_fix.pos = (.9, 0); self.iti_fix.color = 'white'; self.iti_fix.draw()
-                resp = msg_screen(self.msgbox,'shows you the right place to look', pos=(0,-.8))
-
-            elif i == 4: 
-                # final summary
-                self.win.color = blue; self.win.flip()
-                self.img.image = 'images/mgs/mgs_summary.png'
-                self.img.draw()
-                resp = msg_screen(self.msgbox,'')
-
-            elif i == 5: 
-                # last screen before we start
-                self.win.color = 'black'; self.win.flip()
-                resp = msg_screen(self.msgbox,'Ready?\n\n(any key; esc to quit)')
-
-            if 'left' in resp and i > 0:
-                i -= 1
-            else:
-                i += 1
-            if i > 5:
-                break
-
+    ## EVENTS
     def mgs_cue(self,onset,code):
         self.trialnum = self.trialnum + 1
         self.iti_fix.pos = (0,0)  # center
@@ -231,7 +207,7 @@ def run_mgseye(parsed):
     # menu or already picked?
     eyetrackers = ["eyelink","arrington","testing"]
     if parsed.tracker:
-        eyetrackers = parsed.tracker 
+        eyetrackers = parsed.tracker
 
     extra_dict={'fullscreen': not parsed.nofullscreen,
                 'tracker': eyetrackers}
@@ -301,7 +277,12 @@ def run_mgseye(parsed):
     # want to fail early if ET setup isn't working
     # so instructions are after that
     # 'run()' calls 'start()' for each external. so should't be recording yet
-    mgs.instructions()
+    instuctions = [mgs.welcome,
+                   mgs.instruction_dot, mgs.instruction_cross,
+                   mgs.instruction_blank, mgs.instruction_helper,
+                   mgs.instruction_summary,
+                   mgs.instruction_ready]
+    mgs.run_instructions(instuctions)
 
     print(mgs.onset_df)
     mgs.run(end_wait=1)

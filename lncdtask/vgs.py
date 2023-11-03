@@ -11,9 +11,13 @@ GUI DIALOG:
 
 VGS_TIMING={
         'vgs_cue': 2, # green '+' variable
-        'blank': .1, # empty screen
+        'gap': .2, # empty screen
         'vgs_target':1, # yellow dot (cue.bmp in EP1)
+        'blank': .03, # empty screen
         }
+
+VGS_CUE_DURS_SEC = [.5, 2, 6, 4]
+VGS_DOT_POS = [-.875, -.43, .43,.875] #  (c(40,180,460,600) - 640/2) /(640/2)
 
 try:
     from lncdtask import LNCDTask, create_window, replace_img, \
@@ -26,8 +30,7 @@ import sys
 import numpy as np
 import pandas as pd
 
-
-def random_positions(pos=[-.875,-.5,.5,.875], delay=[2.5,7.5], reps=4):
+def random_positions(pos=VGS_DOT_POS, delay=VGS_CUE_DURS_SEC, reps=3):
     """
     randomize position and delay pairs with 'reps' number of repeats
     """
@@ -42,7 +45,7 @@ def random_pos_df():
     onset = 0
 
     for p,d in pos_delays:
-        for event in ['vgs_cue','blank','vgs_target']:
+        for event in ['vgs_cue','gap','vgs_target','blank']:
             events.append({'event_name': event, 'position': p, 'delay': d, 'onset': onset, 'code':f'{event}_{d}_{p}'})
             # accumulates onsets
             # 2 seconds for all but vgs_delay which is variable (TODO: what values)
@@ -81,51 +84,40 @@ class VGSEye(LNCDTask):
         # events
         # also see VGS_TIMING: 
         self.add_event_type('vgs_cue', self.vgs_cue, ['onset', 'code'])
+        self.add_event_type('gap',self.blank, ['onset', 'code'])
         self.add_event_type('vgs_target', self.dot, ['onset', 'position'])
-        self.add_event_type('blank',self.mgs_delay, ['onset', 'code'])
-
-    def instructions(self):
-        blue = '#000080'  # dark blue used in EPrime
+        self.add_event_type('blank',self.blank, ['onset', 'code'])
 
 
-        # 1. welcome - blue (b/c it was blue in EPrime)
-        self.win.color = blue; self.win.flip()
-        resp = msg_screen(self.msgbox,'Welcome to the Lab\n\nThis is the VGS task.\n\n (c to calibrate)')
-        if 'c' in resp and self.eyelink is not None:
-            # TODO: two opengl screens? does this fail?
-            self.eyelink.eyelink.eyeTrkCalib()
+    ## instructions copied from EP1 version
+    def instruction_cross1(self):
+        self.vgs_cue(0,'none',flip=False)
+        return msg_screen(self.msgbox,'Look at the green cross', pos=(0,.9))
 
+    def instruction_dot(self):
+        self.crcl.pos = (0.9 * self.win.size[0]/2, 0)
+        self.crcl.draw()
+        return msg_screen(self.msgbox,'A dot will appear.\nLook at it!', pos=(0,.9))
 
-        # TODO: does this send in a way anyone can see? not recording yet
-        if self.eyelink:
-            self.eyelink.eyelink.trigger('instructions, not recording')
+    def instruction_cross2(self):
+        self.vgs_cue(0,'none',flip=False)
+        return msg_screen(self.msgbox,'Look back to the green cross', pos=(0,.9))
 
-        ## step wise instructions
-        self.win.color = 'black'; self.win.flip()
+    def welcome(self):
+        return self.instruction_welcome(msg='Welcome to the Lab\n\nThis is the VGS task.\n\n (c to calibrate)')
 
-        i=0;
-        while True:
-            if i == 0:
-                self.crcl.pos = (0.9 * self.win.size[0]/2, 0)
-                self.crcl.draw()
-                resp = msg_screen(self.msgbox,'A dot will appear.\nLook at it!', pos=(0,.9))
-
-            if 'left' in resp and i > 0:
-                i -= 1
-            else:
-                i += 1
-            if i > 0:
-                break
-
-    def vgs_cue(self,onset,code):
+    ## only 3 events
+    def vgs_cue(self,onset, code, flip=True):
+        """green fix cross indicating start of trial"""
         self.trialnum = self.trialnum + 1
         self.iti_fix.pos = (0,0)  # center
-        self.iti_fix.color = 'yellow'
+        self.iti_fix.color = 'green'
         self.iti_fix.draw()
-        return(self.flip_at(onset, self.trialnum, code, mark_func=self.mark_trial))
-
+        if flip:
+            return(self.flip_at(onset, self.trialnum, code, mark_func=self.eyelink_trial_mark_plus_external))
 
     def blank(self, onset, code):
+        """flash black before flashing dot"""
         return(self.flip_at(onset, code))
 
     def dot(self, onset, position=0, code='dot'):
@@ -136,17 +128,9 @@ class VGSEye(LNCDTask):
         self.crcl.draw()
         return(self.flip_at(onset, code))
 
-    def mark_trial(self, trial, *kargs):
-        # push to flip_at as mark_func
-        #self.win.callOnFlip(mark_func, *kargs)
-        if self.eyelink:
-            if self.trialnum > 1:
-                self.eyelink.eyelink.trial_end()
-            self.eyelink.eyelink.trial_start(trial)
-        self.mark_external(*kargs)
-
 
 def parse_args(argv):
+    """ command line arguments for VGS (same as MGS) """
     import argparse
     parser = argparse.ArgumentParser(description='Run visually guided saccade (vgs) task')
     parser.add_argument('--tracker',
@@ -249,7 +233,11 @@ def run_vgseye(parsed):
     # want to fail early if ET setup isn't working
     # so instructions are after that
     # 'run()' calls 'start()' for each external. so should't be recording yet
-    vgs.instructions()
+    vgs.run_instructions([vgs.welcome,
+                          vgs.instruction_cross1,
+                          vgs.instruction_dot,
+                          vgs.instruction_cross2,
+                          vgs.instruction_ready])
 
     print(vgs.onset_df)
     vgs.run(end_wait=1)

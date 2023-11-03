@@ -122,7 +122,13 @@ class LNCDTask():
         self.externals.event(msg)
         
     def msg(self, message):
-        msg_screen(self.msgbox, message)
+        """
+        mostly useless wrapper around screen.msg_screen.
+        as part of LNCDTask, can use self.msgbox and wrap that part of mgs_screen
+        return is response
+        """
+        resp = msg_screen(self.msgbox, message)
+        return resp
 
 
     def flip_at(self, onset, *kargs, mark_func=None):
@@ -137,6 +143,20 @@ class LNCDTask():
        wait_until(onset)
        flip = self.win.flip()
        return({'flip': flip})
+
+    def eyelink_trial_mark_plus_external(self, trial, *kargs):
+        """
+        for SR EyeLink: want a trial start and end marker
+        wraps flip_at's default 'mark_func' function
+        """
+        # push to flip_at as mark_func
+        #self.win.callOnFlip(mark_func, *kargs)
+        if self.eyelink:
+            if self.trialnum > 1:
+                self.eyelink.eyelink.trial_end()
+            self.eyelink.eyelink.trial_start(trial)
+        self.mark_external(*kargs)
+
 
 
     def set_onsets(self, onset_df):
@@ -200,6 +220,52 @@ class LNCDTask():
 
       
     # --- Examples
+
+    def run_instructions(self, instruction_funcs=[]):
+        blue = '#000080'  # dark blue used in EPrime
+
+        # can put this as default b/c 'self' doesn't exist at definition time
+        if len(instruction_funcs) == 0:
+            instruction_funcs=[self.instruction_welcome, self.instruction_ready]
+
+        i=0;
+        while True:
+            resp = instruction_funcs[i]()
+            print(f"instructions {i}: ran {instruction_funcs[i].__name__}, got {resp}")
+            # allow presenter to go backwards
+            # but most keys go forward until we run out of instruction_funcs
+            if resp is None:
+                print("WARNING: instruction function provided no response! can only move foward through instructions'")
+                i += 1
+            elif 'left' in resp and i > 0:
+                i -= 1
+            else:
+                i += 1
+            if i >= len(instruction_funcs):
+                break
+
+    def instruction_welcome(self, msg='Welcome to the Lab'):
+        blue = '#000080'  # dark blue used in EPrime
+        # 1. welcome - blue (b/c it was blue in EPrime)
+        prev_bgcolor = self.win.color
+        self.win.color = blue; self.win.flip()
+        resp = self.msg(msg)
+        if 'c' in resp and self.eyelink is not None:
+            # TODO: two opengl screens? does this fail?
+            self.eyelink.eyelink.eyeTrkCalib()
+
+
+        # TODO: does this send in a way anyone can see? not recording yet
+        if self.eyelink:
+            self.eyelink.eyelink.trigger('instructions, not recording')
+
+        # set bgcolor back to black
+        self.win.color = prev_bgcolor; self.win.flip()
+        return resp
+
+    def instruction_ready(self,msg='Ready?\n\n(any key; esc to quit)'):
+        return self.msg(msg)
+
     def iti(self, onset=0, code='iti'):
         self.iti_fix.draw()
         return(self.flip_at(onset, code))
