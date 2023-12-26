@@ -99,6 +99,8 @@ class eyelink:
 
     def trigger(self, eventname):
         """send event discription"""
+        # event name must be <=120 characters?
+        self.el.sendMessage(eventname) # 20231222 TODO does this work!?
         self.el.sendCommand(f"record_status_message {eventname}")
 
     def trial_start(self,trialid):
