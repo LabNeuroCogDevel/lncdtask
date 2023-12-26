@@ -257,7 +257,7 @@ class LNCDTask():
 
         # TODO: does this send in a way anyone can see? not recording yet
         if self.eyelink:
-            self.eyelink.eyelink.trigger('instructions, not recording')
+            self.eyelink.eyelink.trigger('instruct')
 
         # set bgcolor back to black
         self.win.color = prev_bgcolor; self.win.flip()
