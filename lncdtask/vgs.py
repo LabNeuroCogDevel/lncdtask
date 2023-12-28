@@ -10,9 +10,9 @@ GUI DIALOG:
 """
 
 VGS_TIMING={
-        'vgs_cue': 2, # green '+' variable
+        'vgscue': 2, # green '+' variable
         'gap': .2, # empty screen
-        'vgs_target':1, # yellow dot (cue.bmp in EP1)
+        'vgstarget':1, # yellow dot (cue.bmp in EP1)
         'blank': .03, # empty screen
         }
 
@@ -45,11 +45,11 @@ def random_pos_df():
     onset = 0
 
     for p,d in pos_delays:
-        for event in ['vgs_cue','gap','vgs_target','blank']:
+        for event in ['vgscue','gap','vgstarget','blank']:
             events.append({'event_name': event, 'position': p, 'delay': d, 'onset': onset, 'code':f'{event}_{d}_{p}'})
             # accumulates onsets
             # 2 seconds for all but vgs_delay which is variable (TODO: what values)
-            dur = d if event == 'vgs_cue' else VGS_TIMING[event]
+            dur = d if event == 'vgscue' else VGS_TIMING[event]
             onset = onset + dur
 
     return pd.DataFrame(events)
@@ -83,9 +83,9 @@ class VGSEye(LNCDTask):
 
         # events
         # also see VGS_TIMING: 
-        self.add_event_type('vgs_cue', self.vgs_cue, ['onset', 'code'])
+        self.add_event_type('vgscue', self.vgs_cue, ['onset', 'code'])
         self.add_event_type('gap',self.blank, ['onset', 'code'])
-        self.add_event_type('vgs_target', self.dot, ['onset', 'position'])
+        self.add_event_type('vgstarget', self.dot, ['onset', 'position','code'])
         self.add_event_type('blank',self.blank, ['onset', 'code'])
 
 
@@ -123,10 +123,12 @@ class VGSEye(LNCDTask):
     def dot(self, onset, position=0, code='dot'):
         """position dot on horz axis to cue anti saccade
         position is from -1 to 1
+        NB. prev did not pass 'code' column to self.dot when vgstarget
+            now code set like rest of task events ('vsgtarget_{dur}_{pos}')
         """
         self.crcl.pos = (position * self.win.size[0]/2, 0)
         self.crcl.draw()
-        return(self.flip_at(onset, code))
+        return self.flip_at(onset, code)
 
 
 def parse_args(argv):

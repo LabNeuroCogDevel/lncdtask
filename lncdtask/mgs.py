@@ -19,10 +19,10 @@ GUI DIALOG:
 """
 
 MGS_TIMING={
-        'mgs_cue': 2, # yellow '+'
-        'mgs_target':2, # yellow dot (cue.bmp in EP1)
-        'mgs_delay': 0, # blue '+' variable duration
-        'mgs_exec': 2,  # empty screen
+        'mgscue': 2, # yellow '+'
+        'mgstarget':2, # yellow dot (cue.bmp in EP1)
+        'mgsdelay': 0, # blue '+' variable duration
+        'mgsexec': 2,  # empty screen
         'iti': 2 # "Feedback" in EP1, white '+' on black
         }
 
@@ -53,11 +53,11 @@ def random_pos_df():
     onset = 0
 
     for p,d in pos_delays:
-        for event in ['mgs_cue','mgs_target','mgs_delay','mgs_exec','iti']:
+        for event in ['mgscue','mgstarget','mgsdelay','mgsexec','iti']:
             events.append({'event_name': event, 'position': p, 'delay': d, 'onset': onset, 'code':f'{event}_{d}_{p}'})
             # accumulates onsets
             # 2 seconds for all but mgs_delay which is variable (likely 2.5 or 7.5)
-            dur = d if event == 'mgs_delay' else MGS_TIMING[event]
+            dur = d if event == 'mgsdelay' else MGS_TIMING[event]
             onset = onset + dur
 
     return pd.DataFrame(events)
@@ -91,11 +91,11 @@ class MGSEye(LNCDTask):
 
         # events
         # also see MGS_TIMING: 'mgs_cue','mgs_target','mgs_delay','mgs_exec','iti'
-        self.add_event_type('mgs_cue', self.mgs_cue, ['onset', 'code'])
-        self.add_event_type('mgs_target', self.dot, ['onset', 'position'])
-        self.add_event_type('mgs_delay',self.mgs_delay, ['onset', 'code'])
+        self.add_event_type('mgscue', self.mgs_cue, ['onset', 'code'])
+        self.add_event_type('mgstarget', self.dot, ['onset', 'position','code'])
+        self.add_event_type('mgsdelay',self.mgs_delay, ['onset', 'code'])
         # black is empty screen
-        self.add_event_type('mgs_exec', self.mgs_exec, ['onset', 'code'])
+        self.add_event_type('mgsexec', self.mgs_exec, ['onset', 'code'])
         self.add_event_type('iti', self.mgs_helper, ['onset','position','code'])
 
     ## INSTRUCTIONS
@@ -137,6 +137,9 @@ class MGSEye(LNCDTask):
         self.iti_fix.pos = (0,0)  # center
         self.iti_fix.color = 'yellow'
         self.iti_fix.draw()
+        # NB/TODO: not ideal if onset needs to match onset variable
+        #          (X milliseconds to print?)
+        print(f"trial {self.trialnum} @ {onset}")
         return(self.flip_at(onset, self.trialnum, code, mark_func=self.mark_trial))
 
     def mgs_delay(self,onset,code):
@@ -151,10 +154,12 @@ class MGSEye(LNCDTask):
     def dot(self, onset, position=0, code='dot'):
         """position dot on horz axis to cue anti saccade
         position is from -1 to 1
+        NB. code='dot' now overwrote by value in
+            code column of events dataframe
         """
         self.crcl.pos = (position * self.win.size[0]/2, 0)
         self.crcl.draw()
-        return(self.flip_at(onset, code))
+        return self.flip_at(onset, code)
 
     def mark_trial(self, trial, *kargs):
         # push to flip_at as mark_func
