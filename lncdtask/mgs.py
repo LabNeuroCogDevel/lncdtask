@@ -23,7 +23,7 @@ MGS_TIMING={
         'mgstarget':2, # yellow dot (cue.bmp in EP1)
         'mgsdelay': 0, # blue '+' variable duration
         'mgsexec': 2,  # empty screen
-        'iti': 2 # "Feedback" in EP1, white '+' on black
+        'helper': 2 # "Feedback" in EP1, white '+' on black
         }
 
 try:
@@ -53,7 +53,7 @@ def random_pos_df():
     onset = 0
 
     for p,d in pos_delays:
-        for event in ['mgscue','mgstarget','mgsdelay','mgsexec','iti']:
+        for event in ['mgscue','mgstarget','mgsdelay','mgsexec','helper']:
             events.append({'event_name': event, 'position': p, 'delay': d, 'onset': onset, 'code':f'{event}_{d}_{p}'})
             # accumulates onsets
             # 2 seconds for all but mgs_delay which is variable (likely 2.5 or 7.5)
@@ -96,7 +96,7 @@ class MGSEye(LNCDTask):
         self.add_event_type('mgsdelay',self.mgs_delay, ['onset', 'code'])
         # black is empty screen
         self.add_event_type('mgsexec', self.mgs_exec, ['onset', 'code'])
-        self.add_event_type('iti', self.mgs_helper, ['onset','position','code'])
+        self.add_event_type('helper', self.mgs_helper, ['onset','position','code'])
 
     ## INSTRUCTIONS
     def welcome(self):
