@@ -107,14 +107,16 @@ class VGSEye(LNCDTask):
         return self.instruction_welcome(msg='Welcome to the Lab\n\nThis is the VGS task.\n\n (c to calibrate)')
 
     ## only 3 events
-    def vgs_cue(self,onset, code, flip=True):
+    def vgs_cue(self, onset, code, flip=True):
         """green fix cross indicating start of trial"""
-        self.trialnum = self.trialnum + 1
         self.iti_fix.pos = (0,0)  # center
         self.iti_fix.color = 'green'
         self.iti_fix.draw()
         if flip:
-            return(self.flip_at(onset, self.trialnum, code, mark_func=self.eyelink_trial_mark_plus_external))
+            self.trialnum = self.trialnum + 1
+            print(f"trial {self.trialnum} @ {onset}")
+            return self.flip_at(onset, self.trialnum, code,
+                                mark_func=self.eyelink_trial_mark_plus_external)
 
     def blank(self, onset, code):
         """flash black before flashing dot"""
@@ -165,7 +167,7 @@ def run_vgseye(parsed):
     # menu or already picked?
     eyetrackers = ["eyelink","arrington","testing"]
     if parsed.tracker:
-        eyetrackers = parsed.tracker 
+        eyetrackers = parsed.tracker
 
     extra_dict={'fullscreen': not parsed.nofullscreen,
                 'tracker': eyetrackers}
@@ -188,14 +190,13 @@ def run_vgseye(parsed):
     # create task
     win = create_window(run_info.info['fullscreen'])
     vgs = VGSEye(win=win, externals=[printer],
-                    onset_df=random_pos_df())
+                 onset_df=random_pos_df())
     vgs.gobal_quit_key()  # escape quits
     vgs.DEBUG = False
     vgs.eyelink = None
 
     participant = run_info.mk_participant(['VGSEye'])
     run_id = f"{participant.ses_id()}_task-VGS_run-{run_info.run_num()}"
-
 
     if run_info.info["tracker"] == 'arrington':
         try:
