@@ -8,3 +8,6 @@ sudo ip route add 100.1.1.1 via 100.1.1.2
   * small cross
   * no mgs end
   * edf file in top level dir
+  * vgs: dot doesn't have dotpos!?
+  * vgs_cue should be vgscue
+  * trial count starts at 3?
