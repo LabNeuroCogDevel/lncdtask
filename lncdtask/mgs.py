@@ -185,6 +185,10 @@ def parse_args(argv):
                         action="store_true",
                         default=False,
                         help='how to track eyes')
+    parser.add_argument('--noinstructions',
+                        action="store_true",
+                        default=False,
+                        help='show instructions?')
     parser.add_argument('--lpt',
                         type=str,
                         default="",
@@ -210,6 +214,7 @@ def run_mgseye(parsed):
         eyetrackers = parsed.tracker
 
     extra_dict={'fullscreen': not parsed.nofullscreen,
+                'instructions': not parsed.noinstructions,
                 'tracker': eyetrackers}
     run_info = RunDialog(extra_dict=extra_dict,
                          order=['subjid', 'run_num',
@@ -282,7 +287,9 @@ def run_mgseye(parsed):
                    mgs.instruction_blank, mgs.instruction_helper,
                    mgs.instruction_summary,
                    mgs.instruction_ready]
-    mgs.run_instructions(instuctions)
+
+    if run_info.info["instructions"]:
+        mgs.run_instructions(instuctions)
 
     print(mgs.onset_df)
     mgs.run(end_wait=1)
