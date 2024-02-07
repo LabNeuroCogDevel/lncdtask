@@ -104,7 +104,7 @@ class VGSEye(LNCDTask):
         return msg_screen(self.msgbox,'Look back to the green cross', pos=(0,.9))
 
     def welcome(self):
-        return self.instruction_welcome(msg='Welcome to the Lab\n\nThis is the VGS task.\n\n (c to calibrate)')
+        return self.instruction_welcome(msg='Welcome to the Lab\n\nThis is the VGS task.')
 
     ## only 3 events
     def vgs_cue(self, onset, code, flip=True):
@@ -157,6 +157,10 @@ def parse_args(argv):
                         type=int,
                         default=1,
                         help='within visit run number')
+    parser.add_argument('--short',
+                        action="store_true",
+                        default=False,
+                        help='only do a short run (5 events)')
     parsed = parser.parse_args(argv)
     return(parsed)
 
@@ -189,8 +193,12 @@ def run_vgseye(parsed):
 
     # create task
     win = create_window(run_info.info['fullscreen'])
+    event_df = random_pos_df()
+    if parsed.short:
+        event_df = event_df[0:5]
+
     vgs = VGSEye(win=win, externals=[printer],
-                 onset_df=random_pos_df())
+                 onset_df=event_df)
     vgs.gobal_quit_key()  # escape quits
     vgs.DEBUG = False
     vgs.eyelink = None
@@ -236,11 +244,14 @@ def run_vgseye(parsed):
     # want to fail early if ET setup isn't working
     # so instructions are after that
     # 'run()' calls 'start()' for each external. so should't be recording yet
-    vgs.run_instructions([vgs.welcome,
-                          vgs.instruction_cross1,
-                          vgs.instruction_dot,
-                          vgs.instruction_cross2,
-                          vgs.instruction_ready])
+
+    # instructions only run if not using --short testing
+    if not parsed.short:
+        vgs.run_instructions([vgs.welcome,
+                              vgs.instruction_cross1,
+                              vgs.instruction_dot,
+                              vgs.instruction_cross2,
+                              vgs.instruction_ready])
 
     print(vgs.onset_df)
     vgs.run(end_wait=1)

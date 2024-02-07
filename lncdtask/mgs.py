@@ -101,8 +101,9 @@ class MGSEye(LNCDTask):
     ## INSTRUCTIONS
     def welcome(self):
         msg = 'Welcome to the Lab\n\nThis is the MGS task.'
-        if self.eyelink:
-            msg += '\n\n (c to calibrate)'
+        # 2024-02-07 -- disabled b/c will crash. pyschopy+additional opengl does not work
+        #if self.eyelink:
+        #    msg += '\n\n (c to calibrate)'
         return self.instruction_welcome(msg)
 
     def instruction_dot(self):
@@ -206,6 +207,10 @@ def parse_args(argv):
                         type=int,
                         default=1,
                         help='within visit run number')
+    parser.add_argument('--short',
+                        action="store_true",
+                        default=False,
+                        help='only do 5 events (testing)')
     parsed = parser.parse_args(argv)
     return(parsed)
 
@@ -239,8 +244,11 @@ def run_mgseye(parsed):
 
     # create task
     win = create_window(run_info.info['fullscreen'])
+    event_df = random_pos_df()
+    if parsed.short:
+        event_df = event_df[0:5]
     mgs = MGSEye(win=win, externals=[printer],
-                    onset_df=random_pos_df())
+                    onset_df=event_df)
     mgs.gobal_quit_key()  # escape quits
     mgs.DEBUG = False
     mgs.eyelink = None

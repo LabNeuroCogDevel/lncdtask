@@ -112,8 +112,8 @@ class LNCDTask():
             psychopy.event.globalKeys.add(key=key, func=self.mark_and_quit, name='shutdown')
 
     def mark_and_quit(self):
-        self.mark_external("FORCE QUIT")
-        self.externals.stop()
+        self.mark_external("FORCE_QUIT")
+        out_files = self.externals.stop()
         core.quit()
 
     def mark_external(self, *kargs):
@@ -215,7 +215,8 @@ class LNCDTask():
         # based on onsets. dont have durations. might need to wait at the end
         if end_wait:
             core.wait(end_wait)
-        self.externals.stop()
+        out_files = self.externals.stop()
+        print(f"outputs: {out_files}")
         return(self.results)
 
       
@@ -250,7 +251,8 @@ class LNCDTask():
         prev_bgcolor = self.win.color
         self.win.color = blue; self.win.flip()
         resp = self.msg(msg)
-        if 'c' in resp and self.eyelink is not None:
+        # 2024-02-07: disable c to calibrate. psychopy + additional opengl does not work
+        if False and 'c' in resp and self.eyelink is not None:
             # TODO: two opengl screens? does this fail?
             self.eyelink.eyelink.eyeTrkCalib()
 

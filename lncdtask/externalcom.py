@@ -109,11 +109,12 @@ class Arrington(ExternalCom):
             print("send eyeMoive_NewName cmd")
             self.vpxsend('eyeMovie_NewName "%s.avi"' % self.runEyeName)
 
-    def stop(self):
+    def stop(self) -> os.path:
         self.vpxsend('dataFile_Close 0')
         if self.recVideo:
             print("send end movie cmd")
             self.vpxsend('eyeMovie_Close')
+        return self.runEyeName + ".txt"
 
 
 class Eyelink(ExternalCom):
@@ -147,7 +148,7 @@ class Eyelink(ExternalCom):
         self.eyelink.start()
 
     def stop(self):
-        self.eyelink.stop()
+        return self.eyelink.stop()
 
 
 class ParallelPortEEG(ExternalCom):
@@ -230,10 +231,11 @@ class MuteWinSound(ExternalCom):
         for v in self.volumes:
             v.SetMute(1, None)
 
-    def stop(self):
-        "unmute all"
+    def stop(self) -> str:
+        "unmute all. returns empty string: "
         for v in self.volumes:
             v.SetMute(0, None)
+        return ""
 
     def new(self, fname): pass
 
@@ -252,9 +254,9 @@ class AllExternal(ExternalCom):
         for ext in self.externals:
             ext.start()
 
-    def stop(self):
-        for ext in self.externals:
-            ext.stop()
+    def stop(self) -> list[str]:
+        """stop all externals.return list for eyelink is save file location"""
+        return [ext.stop() for ext in self.externals]
 
     def new(self, fname):
         for ext in self.externals:

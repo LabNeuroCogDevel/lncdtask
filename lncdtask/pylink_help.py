@@ -66,9 +66,8 @@ class eyelink:
                 print(f"WARNING: {old_dfn}>8 chars long. using base36 on tracker instead: {dfn}")
 
         self.el.openDataFile(dfn + '.EDF')
-        if sessionid is None:
-            sessionid=dfn
         self.el.sendMessage("NAME: %s"%sessionid)
+        print(f"eyelink data metadata header: name '{sessionid}'")
 
         self.sessionid = sessionid
 
@@ -80,12 +79,12 @@ class eyelink:
             raise Exception("Failed to start pylink eye tracking!")
 
     def stop(self):
-        """cose file and stop tracking"""
+        """cose file and stop tracking. reurns where data was saved"""
         self.el.sendMessage("END")
         pl.endRealTimeMode()
         # el.sendCommand("set_offline_mode = YES")
         self.el.closeDataFile()
-        self.get_data()
+        return self.get_data()
         #pl.getEYELINK().setOfflineMode()
 
     def get_data(self, saveas=None):
@@ -96,11 +95,14 @@ class eyelink:
             saveas = "%s_%s.edf" % (savename, seconds)
         self.el.closeDataFile() # incase we didn't already
         self.el.receiveDataFile("", saveas)
+        print(f"saved eyelink data to {saveas}")
+        return saveas
 
     def trigger(self, eventname):
         """send event discription"""
         # event name must be <=120 characters?
-        self.el.sendMessage(eventname) # 20231222 TODO does this work!?
+        eventname = re.sub(' ','_', eventname) # this might be slow? millisecond offset?
+        self.el.sendMessage(eventname)
         self.el.sendCommand(f"record_status_message {eventname}")
 
     def trial_start(self,trialid):

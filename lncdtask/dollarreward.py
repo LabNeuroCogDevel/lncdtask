@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 try:
     from lncdtask import LNCDTask, create_window, replace_img, wait_for_scanner,\
         ExternalCom, FileLogger, Participant, RunDialog,\
@@ -174,7 +175,9 @@ class DollarReward(LNCDTask):
         self.ringpng[ring_type].draw()
         self.cue_fix.color = 'white'
         self.cue_fix.draw()
-        return(self.flip_at(onset, self.trialnum, 'ring', ring_type, position))
+
+        return self.flip_at(onset, self.trialnum, 'ring', ring_type, position,
+                            mark_func=self.eyelink_trial_mark_plus_external)
 
     def prep(self, onset, ring_type=None, position=None):
         """cue before onset"""
@@ -380,7 +383,7 @@ def run_dollarreward(parsed):
         default_screenhack = True
         triggers = ['equal']
     else:
-        eye_choices = ['None', 'Arrington', 'ArringtonSocket', 'None']
+        eye_choices = ['eyelink', 'Arrington', 'ArringtonSocket', 'None']
 
     participant = None
     # 20220825 - mgs task has port as 0xD010. earlier as DDF8
@@ -447,6 +450,18 @@ def run_dollarreward(parsed):
             from externalcom import ParallelPortEEG
             port = int(run_info.info['LPTport'])
             eyetracker = ParallelPortEEG(port, lookup_func=ttl_wrap, verbose=True)
+        elif run_info.info['EyeTracking'] == 'eyelink':
+            try:
+                # as module
+                from lncdtask.externalcom import Eyelink
+            except ImportError:
+                # as script
+                from externalcom import Eyelink
+            dr.eyelink = Eyelink(win.size)
+            eyetracker = dr.eyelink
+            # dont worry about append and new. will do this below
+            #dr.externals.append(dr.eyelink)
+            #dr.eyelink.new(run_id)
         else:
             eyetracker = None
 
