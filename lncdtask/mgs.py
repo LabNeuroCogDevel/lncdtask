@@ -278,6 +278,8 @@ def run_mgseye(parsed):
         mgs.eyelink = Eyelink(win.size)
         mgs.externals.append(mgs.eyelink)
         mgs.eyelink.new(run_id)
+        mgs.eyelink.eyelink.task_savedir = participant.datadir
+        print(f"# mgs eyd save name like {mgs.eyelink.eyelink.savename()} (datadir='{participant.datadir}')")
 
     if parsed.lpt:
         try:

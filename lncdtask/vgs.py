@@ -226,6 +226,7 @@ def run_vgseye(parsed):
         vgs.eyelink = Eyelink(win.size)
         vgs.externals.append(vgs.eyelink)
         vgs.eyelink.new(run_id)
+        vgs.eyelink.eyelink.task_savedir = participant.datadir
 
     if parsed.lpt:
         try:

@@ -458,7 +458,9 @@ def run_dollarreward(parsed):
                 # as script
                 from externalcom import Eyelink
             dr.eyelink = Eyelink(win.size)
+            dr.eyelink.eyelink.task_savedir = participant.datadir
             eyetracker = dr.eyelink
+
             # dont worry about append and new. will do this below
             #dr.externals.append(dr.eyelink)
             #dr.eyelink.new(run_id)

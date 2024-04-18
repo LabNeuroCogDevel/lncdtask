@@ -44,6 +44,9 @@ class eyelink:
 
         # sub+session. data file name. set in open. saved to tracker. copied locally
         self.sessionid = None
+        # where to save outputfiles (used by self.savename())
+        # expect to be set manually outside of class
+        self.task_savedir = None
 
     def open(self, dfn, sessionid=None, base36enc=False):
         """open file"""
@@ -63,7 +66,7 @@ class eyelink:
             old_dfn = dfn
             dfn = numpy.base_repr(int(datetime.datetime.now().strftime("%s")),36)
             if len(old_dfn)>8:
-                print(f"WARNING: {old_dfn}>8 chars long. using base36 on tracker instead: {dfn}")
+                print(f"WARNING: {old_dfn}>8 chars long. using base36 encoded time on tracker instead: {dfn}")
 
         self.el.openDataFile(dfn + '.EDF')
         self.el.sendMessage("NAME: %s"%sessionid)
@@ -87,12 +90,20 @@ class eyelink:
         return self.get_data()
         #pl.getEYELINK().setOfflineMode()
 
+    def savename(self):
+        "generate local edf filename"
+        seconds = datetime.datetime.strftime(datetime.datetime.now(), "%Y%M%d%H%M%S")
+        session_clean = re.sub('[^A-Za-z0-9]','_',self.sessionid)
+        prefix = ""
+        if self.task_savedir:
+            prefix=self.task_savedir + "/"
+        saveas = "%s%s_%s.edf" % (prefix, session_clean, seconds)
+        return saveas
+
     def get_data(self, saveas=None):
 
         if saveas is None:
-            seconds = datetime.datetime.strftime(datetime.datetime.now(), "%Y%M%d%H%M%S")
-            savename = re.sub('[^A-Za-z0-9]','_',self.sessionid)
-            saveas = "%s_%s.edf" % (savename, seconds)
+            saveas = self.savename()
         self.el.closeDataFile() # incase we didn't already
         self.el.receiveDataFile("", saveas)
         print(f"saved eyelink data to {saveas}")
