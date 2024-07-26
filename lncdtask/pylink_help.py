@@ -18,6 +18,19 @@ import pylink as pl
 import re
 import datetime
 
+def seconds_36base() -> str:
+    """
+    base 36 encoded unix epoch seconds for saving unique edf log file
+
+    Psychopy 2024.1.4 is using win+python3.8 . no "%s" strftime
+    """
+    import numpy
+    try:
+        now = int(datetime.datetime.now().strftime("%s"))
+    except ValueError as e:
+        import time
+        now = int(time.time())
+    return numpy.base_repr(int(now),36)
 
 class eyelink:
     """
@@ -59,9 +72,8 @@ class eyelink:
             #raise Warning("%s is too long of a file name. 8 char is max. using base36 of unix seconds!" % dfn)
             base36enc=True
         if base36enc:
-            import numpy
             old_dfn = dfn
-            dfn = numpy.base_repr(int(datetime.datetime.now().strftime("%s")),36)
+            dfn = seconds_36base()
             if len(old_dfn)>8:
                 print(f"WARNING: {old_dfn}>8 chars long. using base36 on tracker instead: {dfn}")
 
