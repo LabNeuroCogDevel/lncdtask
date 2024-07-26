@@ -154,6 +154,9 @@ class DollarReward(LNCDTask):
         self.make_ring()
         self.trialnum = 0
         
+        # eyelink setup
+        self.eyelink = None
+        
         self.ringpng = {
             'rew': visual.ImageStim(self.win, name="ringrew", interpolate=True, image='images/dollarRing.png'),
             'neu': visual.ImageStim(self.win, name="ringneu", interpolate=True, image='images/neutralRing.png')
@@ -379,16 +382,17 @@ def run_dollarreward(parsed):
     if parsed.where == 'eeg':
         eye_choices = ['EEG', 'Arrington', 'ArringtonSocket', 'None']
     elif parsed.where == 'mr':
-        eye_choices = ['Arrington', 'ArringtonSocket', 'None', 'EEG']
+        eye_choices = ['EyeLink', 'Arrington', 'ArringtonSocket', 'None', 'EEG']
         default_screenhack = True
         triggers = ['equal']
     else:
-        eye_choices = ['eyelink', 'Arrington', 'ArringtonSocket', 'None']
+        eye_choices = ['EyeLink', 'Arrington', 'ArringtonSocket', 'None']
 
     participant = None
     # 20220825 - mgs task has port as 0xD010. earlier as DDF8
     #            0xDDF8 == 56824; 0xD010=53264
-    run_info = RunDialog(extra_dict={'EyeTracking': eye_choices,
+    # 20240715 - eye_choices array read in as text!? force first choice (eyelink)
+    run_info = RunDialog(extra_dict={'EyeTracking': eye_choices[0],
                                      'screenhack': default_screenhack,
                                      'fullscreen': True,
                                      'truncated': False,
@@ -439,6 +443,7 @@ def run_dollarreward(parsed):
 
         # write to external files
         run_id = f"{participant.ses_id()}_task-DR_run-{run_num}"
+        print(f"RUNNINFO: {run_info.info}")
         if run_info.info['EyeTracking'] == "Arrington":
             from externalcom import Arrington
             eyetracker = Arrington()
@@ -450,7 +455,8 @@ def run_dollarreward(parsed):
             from externalcom import ParallelPortEEG
             port = int(run_info.info['LPTport'])
             eyetracker = ParallelPortEEG(port, lookup_func=ttl_wrap, verbose=True)
-        elif run_info.info['EyeTracking'] == 'eyelink':
+        elif run_info.info['EyeTracking'] == 'EyeLink':
+            print("SETUP EYELINK")
             try:
                 # as module
                 from lncdtask.externalcom import Eyelink
