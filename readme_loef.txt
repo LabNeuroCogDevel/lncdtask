@@ -1,3 +1,6 @@
+# Updates
+  * 2024-04-18: move toplevel *edf to eyedata; update instructions to fit on screen; new edf go into data dir w/task files
+
 # Network device config
 sudo ip route add default via 10.135.64.10;
 sudo ip route delete default;

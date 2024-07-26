@@ -112,12 +112,13 @@ class MGSEye(LNCDTask):
         return msg_screen(self.msgbox,'A dot will appear.\nLook at it!', pos=(0,.9))
     def instruction_cross(self):
         self.iti_fix.color = 'blue'
+        self.crcl.pos = (0, 0)
         self.iti_fix.draw()
         return msg_screen(self.msgbox,'The yellow dot will disappear.\nLook back to the blue center cross.', pos=(0,.6))
     def instruction_blank(self):
         return msg_screen(self.msgbox,
                           'When the cross also disappears\nMove your eyes to where the flash was\n\n\n<---   --->',
-                          pos=(0,.7))
+                          pos=(0,.6))
     def instruction_helper(self):
         msg_screen(self.msgbox,'At the end, your helper', pos=(0,.8), flip=False)
         self.iti_fix.pos = (.9, 0); self.iti_fix.color = 'white'; self.iti_fix.draw()
@@ -277,6 +278,8 @@ def run_mgseye(parsed):
         mgs.eyelink = Eyelink(win.size)
         mgs.externals.append(mgs.eyelink)
         mgs.eyelink.new(run_id)
+        mgs.eyelink.eyelink.task_savedir = participant.datadir
+        print(f"# mgs eyd save name like {mgs.eyelink.eyelink.savename()} (datadir='{participant.datadir}')")
 
     if parsed.lpt:
         try:
