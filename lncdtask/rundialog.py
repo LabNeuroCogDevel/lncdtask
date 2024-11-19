@@ -30,5 +30,5 @@ class RunDialog():
     def has_changed(self, key):
         return self.prev.get(key) != self.info.get(key)
 
-    def mk_participant(self, task_info=[]):
-       return Participant(self.info['subjid'], task_info, timepoint=self.info['timepoint'])
+    def mk_participant(self, task_info=[], **kargs):
+       return Participant(self.info['subjid'], task_info, timepoint=self.info['timepoint'], **kargs)

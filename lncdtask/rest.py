@@ -9,6 +9,7 @@ except ImportError:
 import sys
 import numpy as np
 import pandas as pd
+from pathlib import Path
 from psychopy import core, event
 
 
@@ -78,11 +79,15 @@ def parse_args(argv):
     parser.add_argument('--no_fullscreen',
                         default=False,
                         action='store_true',
-                        help='show fixation cross; otherwise expect screen to be turned off')
+                        help='show task fullscreen? useful for debugging')
     parser.add_argument('--cross',
                         default=False,
                         action='store_true',
                         help='show fixation cross; otherwise expect screen to be turned off')
+    parser.add_argument('--subj_root',
+                        default=Path.home()/"Desktop"/"task_data",
+                        help='where')
+
     parsed = parser.parse_args(argv)
     return(parsed)
 
@@ -106,7 +111,7 @@ def run_rest(parsed):
     eyecal.gobal_quit_key()  # escape quits
     eyecal.DEBUG = True
 
-    participant = run_info.mk_participant(['RestTask'])
+    participant = run_info.mk_participant(['RestTask'], subj_root=parsed.subj_root)
     run_id = f"{participant.ses_id()}_task-rest_run-{run_info.run_num()}"
 
     if run_info.info['tracker'] == 'arrington':
