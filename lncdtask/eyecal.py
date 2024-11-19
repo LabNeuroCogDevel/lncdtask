@@ -81,7 +81,7 @@ def parse_args(argv):
     parser = argparse.ArgumentParser(description='Run Eye Calibration')
     parser.add_argument('--tracker',
                         choices=["arrington", "testing", "eyelink"],
-                        default=None,
+                        default="eyelink",
                         help='how to track eyes')
     parser.add_argument('--lpt',
                         type=str,
