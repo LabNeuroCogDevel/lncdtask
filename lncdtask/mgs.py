@@ -106,13 +106,18 @@ class MGSEye(LNCDTask):
         #    msg += '\n\n (c to calibrate)'
         return self.instruction_welcome(msg)
 
+    def instruction_iti(self):
+        self.iti_fix.color = 'white'
+        self.iti_fix.pos = (0,0)
+        self.iti_fix.draw()
+        return msg_screen(self.msgbox,"Start by looking at the white center cross.", pos=(0,.9))
     def instruction_dot(self):
         self.crcl.pos = (0.9 * self.win.size[0]/2, 0)
         self.crcl.draw()
         return msg_screen(self.msgbox,'A dot will appear.\nLook at it!', pos=(0,.9))
     def instruction_cross(self):
         self.iti_fix.color = 'blue'
-        self.crcl.pos = (0, 0)
+        self.iti_fix.pos = (0, 0)
         self.iti_fix.draw()
         return msg_screen(self.msgbox,'The yellow dot will disappear.\nLook back to the blue center cross.', pos=(0,.6))
     def instruction_blank(self):
@@ -299,6 +304,7 @@ def run_mgseye(parsed):
     # so instructions are after that
     # 'run()' calls 'start()' for each external. so should't be recording yet
     instuctions = [mgs.welcome,
+                   mgs.instruction_iti,
                    mgs.instruction_dot, mgs.instruction_cross,
                    mgs.instruction_blank, mgs.instruction_helper,
                    mgs.instruction_summary,
