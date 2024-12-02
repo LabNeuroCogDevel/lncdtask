@@ -38,10 +38,14 @@ class eyelink:
     should use pyGaze instead
     20210330 - should use iohub insetad? see psychoeye.py
     """
-    def __init__(self, sp):
+    def __init__(self, sp, ip='100.1.1.1'):
         """ initialize eyetracker
-        @param 'sp' screen res"""
-        el = pl.EyeLink()
+        :param sp: screen res
+        :param ip:  address of tracker. use empty or none for dummy"""
+        if not ip:
+            el = pl.EyeLink(None)
+        else:
+            el = pl.EyeLink(ip)
         # pygaze uses
         #  pylink.getEYELINK().setPupilSizeDiameter(True)
         #  pylink.getEYELINK().sendCommand(cmd)
