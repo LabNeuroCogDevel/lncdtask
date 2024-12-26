@@ -95,7 +95,11 @@ class RestTask(LNCDTask):
             self.msgbox.text = (
                 f"Scanner TTL/TR pulse count: {cnt or 0}\n"
                 + f"Total rest time: {time or 0}\n"
-                + f"TR: first={self.tr:.2f} cur={tr:.2f} (diff={tr_diff:.2f})\n"
+                + (
+                    f"TR: first={self.tr:.2f} cur={tr:.2f} (diff={tr_diff:.2f})\n"
+                    if self.tr > 0
+                    else ""
+                )
             )
             self.msgbox.draw()
 
@@ -104,9 +108,9 @@ class RestTask(LNCDTask):
 
     def run(self, cross):
         if cross:
-            flip_on = self.iti(code="RestTask launched")
+            self.iti(code="RestTask launched")
         else:
-            self.with_instructions(0, 0)
+            self.with_instructions(0, 0, "launched")
 
         starttime = 0
         cnt = 0
@@ -119,7 +123,7 @@ class RestTask(LNCDTask):
 
             if starttime == 0:
                 starttime = pushtime
-            time = "%.2f" % (pushtime - starttime)
+            time = "%.3f" % (pushtime - starttime)
             msg = f"{cnt} {time}"
             cnt = cnt + 1
             if cross:
@@ -129,6 +133,7 @@ class RestTask(LNCDTask):
 
 
 def parse_args(argv):
+    """Argparser for Resting State Task. see 'lncd_rest --help'"""
     import argparse
 
     parser = argparse.ArgumentParser(description="Run Eye Calibration")
@@ -149,6 +154,10 @@ def parse_args(argv):
         default=False,
         action="store_true",
         help="show fixation cross; otherwise expect screen to be turned off",
+    )
+    parser.add_argument("--subj", default="000", help="default subject id")
+    parser.add_argument(
+        "--sess", default="1", help="default session label. use 'now' for yyyymmdd"
     )
     parser.add_argument(
         "--subj_root",
@@ -171,6 +180,8 @@ def run_rest(parsed):
     eyetracker = None
     run_info = RunDialog(
         extra_dict={
+            "subjid": parsed.subj,
+            "timepoint": parsed.sess,
             "show_cross": parsed.cross,
             "fullscreen": not parsed.no_fullscreen,
             "tracker": parsed.tracker,
