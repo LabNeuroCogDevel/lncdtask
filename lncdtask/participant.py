@@ -12,8 +12,9 @@ from time import time
 def vdate_str():
     """
     return YYYYMMDD format for right now
-    >>> import re; re.match(vdate_str, '^\d{8}$')
-    True
+    >>> import re
+    >>> re.match('^[0-9]{8}$', vdate_str()) # doctest: +ELLIPSIS
+    <re.Match object; span=(0, 8), match='20...
     """
     datestr = datetime.datetime.strftime(datetime.datetime.now(), "%Y%m%d")
     return(datestr)
@@ -27,20 +28,40 @@ class Participant():
         """
         store participant info (subjid, vdate) and optionally make directories
         >>> x = Participant(subjid="XX", task_info=["task-1","type-a"], mkdir=False)
-        >>> x.datadir
-        subj_info/XX/task-1_type-a_20...
-        >>> x.logdir
-        subj_info/XX/task-1_type-a_20.../log
+        >>> x.datadir # doctest: +ELLIPSIS, +NORMALIZE_WHITESPACE
+        'subj_info/sub-XX/ses-01/20..._task-1_type-a'
+        >>> x.logdir # doctest: +ELLIPSIS, +NORMALIZE_WHITESPACE
+        'subj_info/sub-XX/ses-01/20..._task-1_type-a/log'
+
+        >>> x = Participant(subjid="XX", task_info=["a"], timepoint='abc', mkdir=False)
+        >>> x.logdir # doctest: +ELLIPSIS, +NORMALIZE_WHITESPACE
+        'subj_info/sub-XX/ses-abc/20..._a/log'
+
+        >>> x = Participant(subjid="XX", task_info=["a"], timepoint='now', mkdir=False)
+        >>> x.logdir # doctest: +ELLIPSIS, +NORMALIZE_WHITESPACE
+        'subj_info/sub-XX/ses-20.../a/log'
         """
         # remove date from id if it is the last bit ("xxxx_YYYYMMDD" -> "xxxx")
         self.vdate = vdate if vdate else vdate_str()
-        self.timepoint = "%02d" % timepoint
+        if isinstance(timepoint, int) and int(timepoint) < 10:
+            self.timepoint = "%02d" % timepoint
+        elif timepoint == 'now':
+            self.timepoint = vdate_str()
+        else:
+            self.timepoint = str(timepoint)
         # remove "_vdate" from subjid if given
         self.subjid = re.sub("_%s$" % self.vdate, "", subjid)
-        
+
         # subj_info/subj/timepoint_date/modality_set_date/
         tpdir = self.timepoint
-        lastdir = "_".join([self.vdate, *task_info])
+        taskdir = "_".join(task_info)
+
+        # add yyyymmdd to task name for posterity
+        # but not needed if session already encodes that
+        if timepoint != 'now':
+            lastdir = self.vdate + "_" + taskdir
+        else:
+            lastdir = taskdir
         self.datadir = os.path.join(subj_root, "sub-" + subjid, "ses-" + tpdir, lastdir)
         self.logdir = os.path.join(self.datadir, 'log')
         if mkdir:

@@ -31,7 +31,7 @@ import sys
 import numpy as np
 import pandas as pd
 from pathlib import Path
-from psychopy import core, event
+from psychopy import core, event, visual
 
 
 class RestTask(LNCDTask):
@@ -48,31 +48,63 @@ class RestTask(LNCDTask):
         >> r.watch_keys()
         >> # r.run()
         """
+        self.times = []
+        self.tr = 0
         super().__init__(*karg, **kargs)
 
-    def with_instructions(self, cnt=None, time=None, code="rest flip"):
+    def new_tr(self, time: float) -> float:
+        """
+        Add time of tr and calculate tr
+        set self.tr if not set
+        """
+        self.times.append(float(time))
+        if len(self.times) <= 1:
+            return 0
+
+        tr = self.times[-1] - self.times[-2]
+        # set to first
+        if self.tr == 0:
+            self.tr = tr
+        return tr
+
+    def with_instructions(self, cnt=0, time=0, code="rest flip"):
         """show instructions about resting state"""
         self.mark_external(code)
-        self.msgbox.pos = (0, 0.6)
+
+        tr = self.new_tr(time)
+        tr_diff = tr - self.tr
+        # window color changes when starting
+        # and when TR is not consistent
+        if cnt == 1:
+            visual.Rect(self.win, size=(2, 2), fillColor="blue").draw()
+        elif abs(tr_diff) > 0.5:
+            visual.Rect(self.win, size=(2, 2), fillColor="red").draw()
+
+        ## write instructions
+        self.msgbox.pos = (0, -0.6)
         self.msgbox.text = (
             "Turn of projector.\n"
             + "Instructions: keep eyes open and let mind wonder.\n\n"
-            + "Push q to quit"
+            + "Push q to quit\n"
+            + "waiting for scanner ('=')"
         )
         self.msgbox.draw()
+
         if cnt or time:
-            self.msgbox.pos = (0, 0)
+            self.msgbox.pos = (0, 0.3)
             self.msgbox.text = (
                 f"Scanner TTL/TR pulse count: {cnt or 0}\n"
-                + f"Total rest time: {time or 0}"
+                + f"Total rest time: {time or 0}\n"
+                + f"TR: first={self.tr:.2f} cur={tr:.2f} (diff={tr_diff:.2f})\n"
             )
             self.msgbox.draw()
+
         flip = self.win.flip()
         return {"flip": flip}
 
     def run(self, cross):
         if cross:
-            flip_on = self.iti(code="rest launched")
+            flip_on = self.iti(code="RestTask launched")
         else:
             self.with_instructions(0, 0)
 
@@ -80,7 +112,7 @@ class RestTask(LNCDTask):
         cnt = 0
         while True:
             key = event.waitKeys(keyList=["equal", "q"])
-            print(key)
+            # print(key)
             pushtime = core.getTime()
             if key[0] == "q":
                 break
@@ -101,7 +133,10 @@ def parse_args(argv):
 
     parser = argparse.ArgumentParser(description="Run Eye Calibration")
     parser.add_argument(
-        "--tracker", choices=["eyelink"], default="eyelink", help="how to track eyes"
+        "--tracker",
+        choices=["eyelink", "", "arrington"],
+        default="eyelink",
+        help="how to track eyes",
     )
     parser.add_argument(
         "--no_fullscreen",
@@ -116,7 +151,12 @@ def parse_args(argv):
         help="show fixation cross; otherwise expect screen to be turned off",
     )
     parser.add_argument(
-        "--subj_root", default=Path.home() / "Desktop" / "task_data", help="where"
+        "--subj_root",
+        default=Path.home() / "Desktop" / "task_data",
+        help="where to save",
+    )
+    parser.add_argument(
+        "--no_dialog", default=False, action="store_true", help="skip dialog window"
     )
 
     parsed = parser.parse_args(argv)
@@ -124,6 +164,9 @@ def parse_args(argv):
 
 
 def run_rest(parsed):
+    """
+    Launch Rest Task
+    """
     printer = ExternalCom()
     eyetracker = None
     run_info = RunDialog(
@@ -135,7 +178,9 @@ def run_rest(parsed):
         order=["subjid", "run_num", "timepoint", "show_cross", "tracker"],
     )
 
-    if not run_info.dlg_ok():
+    if parsed.no_dialog:
+        pass  # skip dialog
+    elif not run_info.dlg_ok():
         sys.exit()
 
     # create task
@@ -177,6 +222,9 @@ def run_rest(parsed):
 
 
 def main():
+    """
+    Run Rest Task from CLI
+    """
     parsed = parse_args(sys.argv[1:])
     print(parsed)
     run_rest(parsed)
