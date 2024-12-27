@@ -33,6 +33,7 @@ import pandas as pd
 from pathlib import Path
 from psychopy import core, event, visual
 
+TRDIFFTHRES = .1
 
 class RestTask(LNCDTask):
     """
@@ -49,6 +50,7 @@ class RestTask(LNCDTask):
         >> # r.run()
         """
         self.times = []
+        self.bad_trs = {}
         self.tr = 0
         super().__init__(*karg, **kargs)
 
@@ -73,11 +75,14 @@ class RestTask(LNCDTask):
 
         tr = self.new_tr(time)
         tr_diff = tr - self.tr
+        if abs(tr_diff) > TRDIFFTHRES:
+            self.bad_trs[cnt] = tr_diff
+
         # window color changes when starting
         # and when TR is not consistent
         if cnt == 1:
             visual.Rect(self.win, size=(2, 2), fillColor="blue").draw()
-        elif abs(tr_diff) > 0.5:
+        elif abs(tr_diff) > TRDIFFTHRES:
             visual.Rect(self.win, size=(2, 2), fillColor="red").draw()
 
         ## write instructions
@@ -91,15 +96,28 @@ class RestTask(LNCDTask):
         self.msgbox.draw()
 
         if cnt or time:
+            tr_msg = ""
+            if self.tr > 0:
+                tr_msg = f"TR: first={self.tr:.2f} cur={tr:.2f} (diff={tr_diff:.2f})\n"
+
+            if self.bad_trs:
+                height = self.msgbox.height
+                self.msgbox.pos=(-.9,0)
+                self.msgbox.height *= .3
+                self.msgbox.text = "\n".join([f"acq #{k+1} off by {v:.2f} secs" for k,v in self.bad_trs.items()])
+                self.msgbox.color='purple'
+                self.msgbox.draw()
+                self.msgbox.height = height
+                # count total in normal messae
+                tr_msg += f"{len(self.bad_trs)} bad TRs"
+
+
             self.msgbox.pos = (0, 0.3)
+            self.msgbox.color='white'
             self.msgbox.text = (
                 f"Scanner TTL/TR pulse count: {cnt or 0}\n"
                 + f"Total rest time: {time or 0}\n"
-                + (
-                    f"TR: first={self.tr:.2f} cur={tr:.2f} (diff={tr_diff:.2f})\n"
-                    if self.tr > 0
-                    else ""
-                )
+                + tr_msg
             )
             self.msgbox.draw()
 
