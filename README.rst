@@ -33,7 +33,19 @@ For developing on a git clone using pipx (avoid older system `psychopy`)::
   pipx inject lncdtask psychopy
 
 
-Features
+Tasks
+--------
+
+from `setup.cfg`::
+
+  lncd_dollarreward = lncdtask.dollarreward:main
+  lncd_eyecal = lncdtask.eyecal:main
+  lncd_mgs = lncdtask.mgs:main
+  lncd_rest = lncdtask.rest:main
+
+.. image:: docs/lncd_rest.webm
+
+Class Features
 --------
 
 Provides a generic classes:

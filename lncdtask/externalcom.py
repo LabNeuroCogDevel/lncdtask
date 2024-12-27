@@ -254,7 +254,7 @@ class AllExternal(ExternalCom):
         for ext in self.externals:
             ext.start()
 
-    def stop(self) -> list[str]:
+    def stop(self) -> list:
         """stop all externals.return list for eyelink is save file location"""
         return [ext.stop() for ext in self.externals]
 
