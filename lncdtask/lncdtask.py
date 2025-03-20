@@ -30,6 +30,7 @@ from arrington_socket import ArringtonSocket
 from trial_shuffle import shuf_for_ntrials
 import psychopy
 from psychopy import visual, core
+import pandas as pd
 
 class EventRunner():
     """
@@ -105,6 +106,9 @@ class LNCDTask():
         else:
             print("WARNING: lncdtask: missing onset_df. timing unmanaged")
 
+        #: zero-based index of current event number. updated by run()
+        self.event_number = 0
+
         self.DEBUG = False
 
     def gobal_quit_key(self, key='escape'):
@@ -168,8 +172,8 @@ class LNCDTask():
         external is a list of external sources. e.g. [Arrington("newfile")])
         """
 
-        if not 'onset' in onset_df.columns:
-            raise Exception("onset_df must have 'onset' column")
+        if not 'onset' in onset_df.columns and not 'dur' in onset_df.columns:
+            raise Exception("onset_df must have 'onset' or 'dur' column")
         if not 'event_name' in onset_df.columns:
             raise Exception("onset_df must have 'event_name' column")
 
@@ -187,15 +191,29 @@ class LNCDTask():
     
     def run(self, start_at=None, end_wait=0):
         """
-        run through onset_df, running events when we have them
+        Run through onset_df, running events when we have them.
+        see `set_onsets`.
+           if 'onset' column will be "cummulative"/fixed onset times
+           if 'dur' column only, will be "event"/fixed duration times
+
+        :param start_at:  time to start task. default is 'now'
+        :param end_wait:  how long to spend on the last even before continuing
+        :sideffect: updates onset_df and self.result
         """
         if self.onset_df is None:
             raise Exception("no timing exsits. use set_onsets()")
         if start_at is None:
             start_at = core.getTime()
 
-        self.onset_df['onset0'] = self.onset_df.onset
-        self.onset_df['onset'] = self.onset_df.onset + start_at
+        if 'onset' in self.onset_df.columns:
+            self.onset_df['onset0'] = self.onset_df.onset
+            self.onset_df['onset'] = self.onset_df.onset + start_at
+            self.timing_mode = 'cummulative' #: fixed event onsets
+        elif 'dur' in self.onset_df.columns:
+            self.timing_mode = 'event'     #: fixed durations
+            print("Using 'dur' duration instead of 'onset' for timing. Run length will be variable.")
+        else:
+            raise Exception("onset_df has no 'onset' or 'dur' column")
         
         # tell everyone we are starting
         self.externals.start()
@@ -203,11 +221,26 @@ class LNCDTask():
         for (i, row) in self.onset_df.iterrows():
             event_name = row['event_name']
             ev = self.events.get(event_name, None)
+            self.event_number = i
+
+            #: need to update time when we are in event mode
+            if self.timing_mode == 'event':
+                if i > 0:
+                    #: NB!! requires downstream to update dur to be RT
+                    if self.DEBUG:
+                        print(f"prev res: {self.results[i-1]}")
+                    row['onset'] = self.results[i-1]['flip'] + self.onset_df.loc[i-1, 'dur']
+                else:
+                    row['onset'] = start_at
+
             if self.DEBUG:
                 print(row)
             if ev is None:
                 print(f"WARNING: event {i} unknown event '{event_name}'. add it with add_event_type()!")
                 continue
+
+            if len(self.results) < i:
+                raise Exception("results is not initialized! see set_onsets()")
 
             self.results[i] = ev.run(row)
 
@@ -219,6 +252,13 @@ class LNCDTask():
         print(f"outputs: {out_files}")
         return(self.results)
 
+    def all_results(self):
+        """
+        Generate a complete summary of the run.
+        self.results is a list of dicts per event. column bind it to onset_df
+        For the most basic task, this will just add the 'flip' column.
+        """
+        return self.onset_df.join(pd.DataFrame(self.results))
       
     # --- Examples
 
