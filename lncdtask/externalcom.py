@@ -1,6 +1,7 @@
 import os
 import os.path
 from time import time
+from psychopy import core
 
 class ExternalCom():
     def __init__(self, lookup=None):
@@ -164,14 +165,15 @@ class ParallelPortEEG(ExternalCom):
         if zeroTTL:
             from psychopy import core
 
-    def event(self, code):
+    def event(self, *kargs):
         """
         send ttl trigger to parallel port
         wait 10ms and send 0
         """
-        if code is None:
+        if kargs is None:
             return
-        thistrigger = self.lookup_func(code)
+        #print(f"# ttl event: have {kargs}")
+        thistrigger = self.lookup_func(*kargs)
         self.port.setData(thistrigger)
         if self.verbose:
             print("eeg code %s" % thistrigger)

@@ -26,21 +26,56 @@ def eppos2relpos(x, orig_width=800):
     return (x-half_width)/half_width
 
 
-def ttl(trial, event, rew, pos):
+def ttl_wrap(code):
+    """
+    might int input: start and stop codes from library
+    otherwise is a string of trial event rew pos
+    sent to ttl()
+    """
+    if type(code) == str:
+        einfo = code.split(' ')
+        code = ttl(*einfo)
+        print(f"code: {code} from {einfo}")
+    return code
+
+def ttl(trial, event=None, rew=None, pos=None):
     """
     input is same as what is given to flip_at
     passed from there into
     callOnFlip(mark_func, *kargs)
     """
     rew_look = {'neu': 100, 'rew': 200}
-    evt_look = { 'iti': 10, 'ring': 20,
-                'prep': 30,  'dot': 40}
-    pos_look = {  '7': 1, '214': 2,
-                '426': 3, '633': 4}
+    evt_look = { 'iti': 10, 'ring': 20, 'prep': 20,
+                'cue': 30,  'dot': 40}
+    # though we were using input pos
+    # but actually getting calc screen -1 to 1
+    #pos_look = {  '7': 1, '214': 2,
+    #            '426': 3, '633': 4}
+    #pos_look= pos_look.get(str(pos), 5)
+    if pos is None:
+        pos = 9
+    else:
+        pos = float(pos)
+
+    if pos < -.7: #-.97
+        pos_look = 1
+    elif pos < -.5: # -.66
+        pos_look = 2
+    elif pos < 0: # -.33
+        pos_look = 3
+    elif pos < .5: # .33
+        pos_look = 4
+    elif pos < .9: # .66
+        pos_look = 5
+    elif pos < 1: # .97
+        pos_look = 6
+    else:
+        pos_look = 0 # iti -- no side
+
 
     v = rew_look.get(rew, 0) +\
         evt_look.get(event, 50) + \
-        pos_look.get(str(pos), 5)
+        pos_look
 
     return(v)
             
@@ -83,8 +118,8 @@ class DollarReward(LNCDTask):
         self.trialnum = 0
         
         self.ringpng = {
-            'neu': visual.ImageStim(self.win, name="ringnue", interpolate=True, image='images/dollarRing.png'),
-            'rew': visual.ImageStim(self.win, name="ringrew", interpolate=True, image='images/neutralRing.png')
+            'rew': visual.ImageStim(self.win, name="ringnue", interpolate=True, image='images/dollarRing.png'),
+            'neu': visual.ImageStim(self.win, name="ringrew", interpolate=True, image='images/neutralRing.png')
         }
 
         self.instructionpng = visual.ImageStim(self.win, name="instruct", interpolate=True, image='images/instructions.png')
@@ -118,9 +153,9 @@ class DollarReward(LNCDTask):
         # hack to get dot size
         imgpos = replace_img(self.img, None, position, self.dotsize_edge)
         self.crcl.pos = imgpos
-        print(self.crcl.size)
-        print(self.crcl.units)
+        self.crcl.size=(1,1) # TODO: needed in newer versions of psychopy? why?
         self.crcl.draw()
+        #print(f"CIRCLE INFO:\n{self.crcl}")
         return(self.flip_at(onset, self.trialnum, 'dot', ring_type, position))
 
     def get_ready(self, triggers=['equal']):
@@ -363,7 +398,7 @@ if __name__ == "__main__":
         elif run_info.info['EyeTracking'] == 'EEG':
             from externalcom import ParallelPortEEG
             port = int(run_info.info['LPTport'])
-            eyetracker = ParallelPortEEG(port, ttl, verbose=True)
+            eyetracker = ParallelPortEEG(port, lookup_func=ttl_wrap, verbose=False)
         else:
             eyetracker = None
 
