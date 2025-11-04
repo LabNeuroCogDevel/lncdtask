@@ -164,7 +164,12 @@ class ParallelPortEEG(ExternalCom):
         """
         from psychopy import parallel
         self.zeroTTL = zeroTTL
-        pp_address = int(pp_address)
+        # on windows, need to make sure string from dialog is put back to integer
+        # but string could be path to parallel port, in which case, dont need to convert
+        try:
+            pp_address = int(pp_address)
+        except ValueError as e:
+            print("WARNING: cannot cast LPT port to int. this is okay if pointing to /dev/parport")
         print(f"pp_address: {pp_address}")
         self.pp_address = pp_address
         self.port = parallel.ParallelPort(address=pp_address)

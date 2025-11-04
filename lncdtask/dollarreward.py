@@ -9,6 +9,7 @@ except ImportError as e:
         ExternalCom, FileLogger, Participant, RunDialog, \
         wait_until, shuf_for_ntrials
 
+import platform
 from psychopy import misc, visual
 import numpy as np
 import pandas as pd
@@ -341,6 +342,42 @@ def parse_args(argv):
     parsed = parser.parse_args(argv)
     return parsed
 
+
+def get_settings(parsed):
+    """ default settings change based on where we are
+     1) screenhack for mr b/c something funny with win7+psychopy (gamma?) at MRRC
+     2) only need '=' trigger for MR (scanner triggers task start)
+        in eeg task triggers recording
+    """
+    default_screenhack = False
+    if parsed.where == 'eeg':
+        eye_choices = ['EEG', 'Arrington', 'ArringtonSocket', 'None']
+    elif parsed.where == 'mr':
+        eye_choices = ['EyeLink', 'Arrington', 'ArringtonSocket', 'None', 'EEG']
+        default_screenhack = True
+    else:
+        eye_choices = ['EyeLink', 'Arrington', 'ArringtonSocket', 'None']
+
+    settings = {'EyeTracking': eye_choices[0],
+                'screenhack': default_screenhack,
+                'fullscreen': True,
+                'truncated': False,
+                'LPTport': ""}
+
+    nodename = platform.uname().node
+    print(f"running on {nodename}")
+    if nodename in ['DESKTOP-I2CP6M6']:
+        print(f"is windows EEG")
+        # 20220825 - mgs task has port as 0xD010. earlier as DDF8
+        #            0xDDF8 == 56824; 0xD010=53264
+        settings['LPTport'] = "53264"
+    elif nodename in ['eegtask']:
+        print(f"is linux EEG")
+        settings['LPTport'] = "/dev/parport0"
+
+
+    return settings
+
 def run_dollarreward(parsed):
     from time import time
     printer = ExternalCom()
@@ -373,30 +410,19 @@ def run_dollarreward(parsed):
         n_runs = 4
         read_file_func = lambda runnum: read_timing(runnum, fname="dollar_reward_events.txt")
 
-    # default settings change based on where we are
-    # 1) screenhack for mr b/c something funny with win7+psychopy (gamma?) at MRRC
-    # 2) only need '=' trigger for MR (scanner triggers task start)
-    #    in eeg task triggers recording
-    default_screenhack = False
-    triggers = None
-    if parsed.where == 'eeg':
-        eye_choices = ['EEG', 'Arrington', 'ArringtonSocket', 'None']
-    elif parsed.where == 'mr':
-        eye_choices = ['EyeLink', 'Arrington', 'ArringtonSocket', 'None', 'EEG']
-        default_screenhack = True
+
+    # 2025-11-03WF - move settings into variable to edit based on hostname
+    settings = get_settings(parsed)
+
+    # MR task triggered by scanner '=' otherwise any key
+    if parsed.where == 'mr':
         triggers = ['equal']
     else:
-        eye_choices = ['EyeLink', 'Arrington', 'ArringtonSocket', 'None']
+        triggers = None
 
     participant = None
-    # 20220825 - mgs task has port as 0xD010. earlier as DDF8
-    #            0xDDF8 == 56824; 0xD010=53264
     # 20240715 - eye_choices array read in as text!? force first choice (eyelink)
-    run_info = RunDialog(extra_dict={'EyeTracking': eye_choices[0],
-                                     'screenhack': default_screenhack,
-                                     'fullscreen': True,
-                                     'truncated': False,
-                                     'LPTport': "53264"},
+    run_info = RunDialog(extra_dict=settings,
                          order=['subjid', 'run_num', 'timepoint',
                                 'EyeTracking', 'fullscreen', 'screenhack',
                                 'LPTport'])
@@ -453,7 +479,7 @@ def run_dollarreward(parsed):
             eyetracker = ArringtonSocket()
         elif run_info.info['EyeTracking'] == 'EEG':
             from externalcom import ParallelPortEEG
-            port = int(run_info.info['LPTport'])
+            port = run_info.info['LPTport']
             eyetracker = ParallelPortEEG(port, lookup_func=ttl_wrap, verbose=True)
         elif run_info.info['EyeTracking'] == 'EyeLink':
             print("SETUP EYELINK")
