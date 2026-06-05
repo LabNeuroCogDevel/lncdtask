@@ -43,6 +43,11 @@ def read_timing(run_num, fname="dollar_reward_events.txt", n_start_iti=3, tr=1.5
         raise Exception(f"cannot find eprime timing file! '{fname}'")
     print(fname)
     ep_df = pd.read_csv(fname,sep="\t", header=None)
+    # input like:
+    # 1	neutral426	426	neu	ring
+    # 1	neutral426	426	neu	prep
+    # 1	neutral426	426	neu	dot
+    # 1	fix       	NA	NA	iti
     ep_df.columns=["run","epevent","position640", "ring_type","event_name"]
     ep_df['position'] = eppos2relpos(ep_df.position640, 640)
     ep_df = ep_df[ep_df.run==run_num].reset_index()
@@ -111,8 +116,12 @@ def ttl(trial, event=None, rew=None, pos=None):
         pos_look = 0 # iti -- no side
 
 
+    evt = evt_look.get(event, 50)
+    # dont print in this time senstive function
+    #if evt == 50:
+    #    print(f"WARNING: {event} not in evt lookup. using 0")
     v = rew_look.get(rew, 0) +\
-        evt_look.get(event, 50) + \
+        evt + \
         pos_look
 
     return(v)
@@ -172,6 +181,14 @@ class DollarReward(LNCDTask):
         self.add_event_type('iti', self.iti, ['onset'])
 
     # -- drawing functions
+    def iti(self, onset=0):
+        """Overwrite exiting lncdtask.iti with slightly different flip_at:
+        DR mark func expects trialnum first. so we can send correct '10' instead of '50'
+        changed 20260605 (previous, iti is 50)
+        """
+        self.iti_fix.draw()
+        return self.flip_at(onset, self.trialnum, 'iti')
+
     def ring(self, onset, ring_type, position=None):
         """ display ring: reward or neutral """
         self.trialnum = self.trialnum + 1
@@ -180,7 +197,12 @@ class DollarReward(LNCDTask):
         self.cue_fix.color = 'white'
         self.cue_fix.draw()
 
-        return self.flip_at(onset, self.trialnum, 'ring', ring_type, position,
+        # 20260605 - bug
+        # trial number twice! first is eaten by eyelink_trial_mark
+        # then passed on to external_mark which also expects trial number
+        # BREAKING CHANGE: eyelink mesages are now '6_ring_rew_0.978125' instead of 'ring_rew_0.978125'
+        #                  now ring matches other events (e.g '6_cue_rew_0.978125')
+        return self.flip_at(onset, self.trialnum, self.trialnum, 'ring', ring_type, position,
                             mark_func=self.eyelink_trial_mark_plus_external)
 
     def prep(self, onset, ring_type=None, position=None):
@@ -356,7 +378,7 @@ def get_settings(parsed):
         eye_choices = ['EyeLink', 'Arrington', 'ArringtonSocket', 'None', 'EEG']
         default_screenhack = True
     else:
-        eye_choices = ['EyeLink', 'Arrington', 'ArringtonSocket', 'None']
+        eye_choices = ['Test', 'EyeLink', 'Arrington', 'ArringtonSocket', 'None']
 
     settings = {'EyeTracking': eye_choices[0],
                 'screenhack': default_screenhack,
@@ -443,9 +465,10 @@ def run_dollarreward(parsed):
 
         if run_info.info['screenhack']:
             # pygame (default), pyglet (newer), glfw (experimental)
-            # MR res = [1024,768]
             # fullscreen doesn't exist. goes into power saving mode
-            win = visual.Window([1024, 768])#, winType='pyglet')
+            res = [1024,768]
+            print(f"Using 'screen hack' forced res {res} instead of fullscreen")
+            win = visual.Window(res)#, winType='pyglet')
             win.winHandle.activate()  # make sure the display window has focus
             win.mouseVisible = False  # and that we don't see the mouse
             win.color = (-1, -1, -1)
@@ -496,6 +519,14 @@ def run_dollarreward(parsed):
             # dont worry about append and new. will do this below
             #dr.externals.append(dr.eyelink)
             #dr.eyelink.new(run_id)
+
+        elif run_info.info['EyeTracking'] == 'Test':
+            # run through without mr or eyelink. for testing
+            # cf. export EYELINK_ADDRESS='dummy' for EyeLink
+            testcom = ExternalCom(lookup=ttl_wrap)
+            dr.externals.append(testcom)
+            eyetracker = None
+
         else:
             eyetracker = None
 

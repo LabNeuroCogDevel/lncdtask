@@ -12,11 +12,14 @@ install instructions
  - from the vendor
    https://www.sr-support.com/showthread.php?16-Linux-Display-Software-Package
 
+Use environmental variable EYELINK_ADDRESS='dummy' to force testing
+
 TODO: use pyGaze instead
 """
-import pylink as pl
-import re
 import datetime
+import os
+import re
+import pylink as pl
 
 def seconds_36base() -> str:
     """
@@ -38,11 +41,15 @@ class eyelink:
     should use pyGaze instead
     20210330 - should use iohub insetad? see psychoeye.py
     """
-    def __init__(self, sp, ip='100.1.1.1'):
+    def __init__(self, sp, ip=os.environ.get('EYELINK_ADDRESS','100.1.1.1')):
         """ initialize eyetracker
         :param sp: screen res
-        :param ip:  address of tracker. use empty or none for dummy"""
-        if not ip:
+        :param ip:  address of tracker. use empty or none for dummy
+
+        global enviornment variable EYELINK_ADDRESS can also be use to set ip.
+        if 'dummy', ip is set to None even if the ip parameter is set"""
+
+        if not ip or os.environ.get('EYELINK_ADDRESS') == 'dummy':
             el = pl.EyeLink(None)
         else:
             el = pl.EyeLink(ip)
@@ -129,6 +136,12 @@ class eyelink:
         """send event discription"""
         # event name must be <=120 characters?
         eventname = re.sub(' ','_', eventname) # this might be slow? millisecond offset?
+
+        # don't check env in time sensitive function
+        # but useful for debugging like: VERBOSE=1 EYELINK_ADDRESS=dummy ./dollarreward.py ...
+        #if os.environ.get('VERBOSE'):
+        #    print(f"message: {eventname}")
+
         self.el.sendMessage(eventname)
         self.el.sendCommand(f"record_status_message {eventname}")
 
