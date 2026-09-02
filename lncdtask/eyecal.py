@@ -11,32 +11,43 @@ import numpy as np
 import pandas as pd
 
 
-def random_positions(center=.2, edge=.9, n=20, reps=1):
+def random_positions(center=.2, edge=.9, n=20, reps=1, **kargs):
+    # 20260507 - extra kargs added to accept n_up passed on fraom random_pos_df
+    #            ugly kludge to avoid restructring code
     # default is 20 steps from center .2 to edge .9 (right side)
     # left side is that but negative: center -.2 to edge -.9
     # for the right side
     p_r = np.linspace(center, edge, n)
     p_lr = np.concatenate([p_r, -1 * p_r])
-    ridx = [p for ii in range(reps) for p in np.random.permutation(len(p_lr)) ]
+    ridx = [p for ii in range(reps) for p in np.random.permutation(len(p_lr))]
     return p_lr[ridx]
 
 
-def random_pos_df(dur=.5, **kargs):
+def random_pos_df(dur=.5, n_up=1, **kargs):
     positions = random_positions(**kargs)
+    if n_up > 1:
+        # update passed in kargs s.t. n_up is now n
+        vert_positions = random_positions(**{**kargs, 'n': n_up})
+    else:
+        vert_positions = [0]
+    print(positions)
+    print(vert_positions)
+
     events = []
     onset = 0
     for p in positions:
-        events.append({'event_name': 'iti',
-                       'position': p, 'onset': onset})
-        onset = onset + dur
+        for v in vert_positions:
+            events.append({'event_name': 'iti',
+                           'position': p, 'vert': v, 'onset': onset})
+            onset = onset + dur
 
-        events.append({'event_name': 'dot',
-                       'position': p, 'onset': onset})
-        onset = onset + dur
+            events.append({'event_name': 'dot',
+                           'position': p, 'vert': v, 'onset': onset})
+            onset = onset + dur
 
     # last iti so we see all of final dot
     events.append({'event_name': 'iti',
-                   'position': 0, 'onset': onset})
+                   'position': 0, 'vert': 0, 'onset': onset})
 
     return pd.DataFrame(events)
 
@@ -62,18 +73,18 @@ class EyeCal(LNCDTask):
         self.trialnum = 0
 
         # events
-        self.add_event_type('dot', self.dot, ['onset', 'position'])
+        self.add_event_type('dot', self.dot, ['onset', 'position', 'vert'])
         self.add_event_type('iti', self.iti, ['onset'])
 
-    def dot(self, onset, position=0):
+    def dot(self, onset, position=0, vert=0):
         """position dot on horz axis to cue anti saccade
         position is from -1 to 1
         """
         self.trialnum = self.trialnum + 1
-        self.crcl.pos = (position * self.win.size[0]/2, 0)
+        self.crcl.pos = (position * self.win.size[0]/2, vert * self.win.size[1]/2)
         self.crcl.size = (1, 1)
         self.crcl.draw()
-        return(self.flip_at(onset, self.trialnum, 'dot', position))
+        return(self.flip_at(onset, self.trialnum, 'dot', position, vert))
 
 
 def parse_args(argv):
@@ -90,7 +101,11 @@ def parse_args(argv):
     parser.add_argument('--n_right',
                         type=int,
                         default=4,
-                        help='how many points to use')
+                        help='how many left-right points to use')
+    parser.add_argument('--n_up',
+                        type=int,
+                        default=1,
+                        help='how many up-down points to use')
     parser.add_argument('--dur',
                         type=float,
                         default=1.0,
@@ -99,6 +114,10 @@ def parse_args(argv):
                         type=int,
                         default=3,
                         help='how long to show each point')
+    parser.add_argument('--fullscreen',
+                        choices=["yes", "no"],
+                        default="yes",
+                        help='run fullcreen?')
     parsed = parser.parse_args(argv)
     return(parsed)
 
@@ -106,10 +125,11 @@ def parse_args(argv):
 def run_eyecal(parsed):
     printer = ExternalCom()
     eyetracker = None
-    run_info = RunDialog(extra_dict={'fullscreen': True,
+    run_info = RunDialog(extra_dict={'fullscreen': parsed.fullscreen == 'yes',
                                      'dur': parsed.dur,
                                      'reps': parsed.reps,
-                                     'n_right': parsed.n_right},
+                                     'n_right': parsed.n_right,
+                                     'n_up': parsed.n_up},
                          order=['subjid', 'run_num',
                                 'timepoint', 'fullscreen', 'dur', 'n_right'])
 
@@ -118,12 +138,13 @@ def run_eyecal(parsed):
 
     dur = float(run_info.info['dur'])
     n_right = int(run_info.info['n_right'])
+    n_up = int(run_info.info['n_up'])
     reps = int(run_info.info['n_right'])
 
     # create task
     win = create_window(run_info.info['fullscreen'])
     eyecal = EyeCal(win=win, externals=[printer],
-                    onset_df=random_pos_df(dur=dur, n=n_right, reps=reps))
+                    onset_df=random_pos_df(dur=dur, n=n_right, n_up=n_up, reps=reps))
     eyecal.gobal_quit_key()  # escape quits
     eyecal.DEBUG = False
 

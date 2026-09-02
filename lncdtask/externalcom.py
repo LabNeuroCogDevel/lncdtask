@@ -164,6 +164,13 @@ class ParallelPortEEG(ExternalCom):
         """
         from psychopy import parallel
         self.zeroTTL = zeroTTL
+        # on windows, need to make sure string from dialog is put back to integer
+        # but string could be path to parallel port, in which case, dont need to convert
+        try:
+            pp_address = int(pp_address)
+        except ValueError as e:
+            print("WARNING: cannot cast LPT port to int. this is okay if pointing to /dev/parport")
+        print(f"pp_address: {pp_address}")
         self.pp_address = pp_address
         self.port = parallel.ParallelPort(address=pp_address)
         self.lookup_func = lookup_func
@@ -249,6 +256,15 @@ class AllExternal(ExternalCom):
 
     def append(self, extern):
         self.externals.append(extern)
+
+    def prepend(self, extern: ExternalCom):
+        """
+        Add device to start of externals list.
+        Useful to put the more time sensitive device first.
+        `start`, `stop`, `event`, etc all issue commands to devices in the order they are in `externals`
+        :param extern: external device
+        """
+        self.externals.insert(0,extern)
 
     def start(self):
         for ext in self.externals:
