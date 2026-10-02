@@ -13,7 +13,6 @@ except ImportError as e:
         wait_until, shuf_for_ntrials
 
 import pandas as pd
-from lncdtask.screen import wait_for_scanner
 
 ## setup. timing from EEG vgs_anti
 block_reps = 2
@@ -172,7 +171,7 @@ When the cross is
   Gray means rest
 
 Hold the correct location until the the cross returns.
-{task_info_msg}; end at {onsets.endtime.to_list()[-1]}
+{task_info_msg}; end at {list(onsets.endtime)[-1]}
 """)
     wait_for_scanner(ab.msgbox, msg="Waiting for scanner ('=')")
 
@@ -183,8 +182,6 @@ Hold the correct location until the the cross returns.
 
     ab.msg("All Done!")
 
-
-def sheets_for_psychopygui():
 
 if __name__ == "__main__":
     run()
